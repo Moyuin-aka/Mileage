@@ -1,0 +1,41 @@
+name: mileage
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mileage}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-mileage}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mileage} -d ${POSTGRES_DB:-mileage}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    image: ${MILEAGE_API_IMAGE:-ghcr.io/moyuin-aka/mileage-api:latest}
+    restart: unless-stopped
+    environment:
+      PORT: 8080
+      APP_PASSWORD: ${APP_PASSWORD:?APP_PASSWORD is required}
+      API_TOKEN: ${API_TOKEN:?API_TOKEN is required}
+      DATABASE_URL: postgres://${POSTGRES_USER:-mileage}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:-mileage}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    image: ${MILEAGE_FRONTEND_IMAGE:-ghcr.io/moyuin-aka/mileage-frontend:latest}
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${FRONTEND_PORT:-8088}:80"
+
+volumes:
+  pgdata:
