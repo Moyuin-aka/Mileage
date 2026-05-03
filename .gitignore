@@ -61,6 +61,7 @@ frontend/public/uploads/
 tmp/
 temp/
 docs/*.png
+!docs/page.png
 
 # Backend build artifacts for likely Phase 1 options
 target/

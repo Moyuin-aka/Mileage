@@ -1,7 +1,7 @@
 {
   "name": "mileage-api",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
@@ -19,5 +19,6 @@
     "@types/pg": "^8.11.10",
     "tsx": "^4.19.2",
     "typescript": "^5.9.3"
-  }
+  },
+  "license": "AGPL-3.0-only"
 }

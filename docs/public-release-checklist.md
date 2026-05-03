@@ -2,7 +2,7 @@
 
 Before pushing this repository as public:
 
-- Keep `.env`, `frontend/.env.local`, database volumes, logs, screenshots, and `prompt.md` out of git.
+- Keep `.env`, `frontend/.env.local`, database volumes, logs, real-data screenshots, and `prompt.md` out of git.
 - Use `.env.example` only for placeholders.
 - Rotate any secret that was ever copied into a terminal, chat, issue, or commit.
 - Verify the frontend bundle does not contain `API_TOKEN` or `VITE_API_TOKEN`.

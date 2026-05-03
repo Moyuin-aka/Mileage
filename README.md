@@ -1,35 +1,63 @@
-# Mileage
+<div align="center">
+  <h1>Mileage</h1>
+  <p><strong>自托管的资产成本追踪器</strong></p>
+  <p>把购入价格、维修维护、残值和持有时间折算成真实日均成本。</p>
 
-长期主义资产追踪器，用来记录电子产品和大额物品，按持有时间计算日均成本，辅助判断是否继续使用或换购。
+  <p>
+    <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-AGPL--3.0-blue.svg"></a>
+    <img alt="Version" src="https://img.shields.io/badge/version-0.1.0-44cc7a.svg">
+    <img alt="Docker" src="https://img.shields.io/badge/docker-GHCR-2496ED.svg?logo=docker&logoColor=white">
+    <img alt="Self hosted" src="https://img.shields.io/badge/self--hosted-Docker%20Compose-111827.svg">
+  </p>
 
-## 技术栈
+  <img src="docs/page.png" alt="Mileage dashboard" width="100%">
+</div>
 
-- Frontend: React + TypeScript + Vite + Tailwind CSS + PWA
-- Backend: Hono + TypeScript + PostgreSQL
-- Deployment: Docker Compose
+## 为什么做这个
 
-## 使用预构建镜像
+很多东西买回来不是一次性消费。手机换过屏幕，电脑换过电池，耳机修过一次，最后可能还会转手。Mileage 关心的是这些物品在整个持有周期里到底花了多少钱。
 
-镜像发布到 GitHub Container Registry：
+它适合用来回答这些问题：
 
-```text
-ghcr.io/moyuin-aka/mileage-api:latest
-ghcr.io/moyuin-aka/mileage-frontend:latest
-```
+- 这件东西平均每天花了多少钱？
+- 维修后继续用，还是换新更划算？
+- 后续维修、保养、配件要不要算进总成本？
+- 哪些资产已经到了该退役或转手的时候？
 
-使用 release compose 启动：
+## 功能
+
+- 记录电子产品、家电、家具、交通工具和其他大额物品
+- 追踪购入价格、购入日期、渠道、备注和预估残值
+- 支持使用中、已退役、已转手三种状态
+- 记录维修、换电池、保养、配件、保修等后续支出
+- 可选择每笔后续支出是否计入总拥有成本
+- 自动计算日均成本、年化成本、总投入和归档统计
+- 使用一个专属密码登录，适合个人自托管
+- Docker Compose 一条命令部署
+
+## 快速开始
+
+准备一台已经安装 Docker 和 Docker Compose 的机器：
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/Moyuin-aka/mileage/main/compose.release.yml
-curl -fsSLO https://raw.githubusercontent.com/Moyuin-aka/mileage/main/.env.example
+curl -fsSLO https://raw.githubusercontent.com/Moyuin-aka/Mileage/main/compose.release.yml
+curl -fsSLO https://raw.githubusercontent.com/Moyuin-aka/Mileage/main/.env.example
 cp .env.example .env
 ```
 
-编辑 `.env`，至少修改：
+编辑 `.env`，至少修改这三项：
 
-- `APP_PASSWORD`: 登录页密码
-- `API_TOKEN`: 服务端会话签名密钥，建议用 `openssl rand -hex 32`
-- `POSTGRES_PASSWORD`: PostgreSQL 密码，建议用 `openssl rand -hex 32`
+```bash
+APP_PASSWORD=你的登录密码
+API_TOKEN=一串足够长的随机密钥
+POSTGRES_PASSWORD=一串足够长的数据库密码
+```
+
+可以用 OpenSSL 生成随机密钥：
+
+```bash
+openssl rand -hex 32
+```
 
 启动：
 
@@ -37,127 +65,84 @@ cp .env.example .env
 docker compose -f compose.release.yml up -d
 ```
 
-默认访问 `http://localhost:8088`。
+默认访问：
 
-## 本地 Docker 启动
+```text
+http://localhost:8088
+```
 
-1. 准备环境变量：
+部署在服务器上时，把 `localhost` 换成服务器地址即可。
+
+## Docker 镜像
+
+预构建镜像发布在 GitHub Container Registry：
+
+```text
+ghcr.io/moyuin-aka/mileage-api:0.1.0
+ghcr.io/moyuin-aka/mileage-frontend:0.1.0
+```
+
+`compose.release.yml` 默认使用 `latest`。如果想固定版本，可以在 `.env` 中指定：
+
+```bash
+MILEAGE_API_IMAGE=ghcr.io/moyuin-aka/mileage-api:0.1.0
+MILEAGE_FRONTEND_IMAGE=ghcr.io/moyuin-aka/mileage-frontend:0.1.0
+```
+
+## 升级
+
+```bash
+docker compose -f compose.release.yml pull
+docker compose -f compose.release.yml up -d
+```
+
+数据库 migration 会在 API 启动时自动执行。数据保存在 Docker volume `pgdata` 中，升级前建议先备份。
+
+## 备份
+
+导出数据库：
+
+```bash
+docker compose -f compose.release.yml exec db pg_dump -U mileage mileage > mileage-backup.sql
+```
+
+恢复前请先停止服务，并确认目标数据库为空。
+
+## 成本模型
+
+Mileage 的核心公式：
+
+```text
+日均成本 = (购入价格 + 计入成本的后续支出 - 回收金额) / 持有天数
+```
+
+回收金额规则：
+
+- 已转手物品使用转手价格
+- 未转手物品使用预估残值
+
+后续支出可以单独决定是否计入成本。比如换电池、修屏幕通常可以计入；免费保修或只想留档的记录可以不计入。
+
+## 路线图
+
+`0.1.0` 是第一个公开自托管版本，重点是资产记录、成本统计、后续支出和基础密码保护。
+
+计划在 `1.0.0` 加入 OCR，让购买截图、订单截图或票据能自动辅助录入。
+
+## 本地开发
 
 ```bash
 cp .env.example .env
-```
-
-编辑 `.env`：
-
-- `APP_PASSWORD` 是登录页输入的专属密码
-- `API_TOKEN` 是服务端会话签名密钥，不会再写入前端 bundle
-
-2. 启动：
-
-```bash
 cd frontend && npm install && npm run build && cd ..
 docker compose up --build
 ```
 
-默认访问：
+技术栈：
 
-- 前端: `http://localhost:8088`
-- 后端健康检查: `http://localhost:18080/health`
+- React + TypeScript + Vite + Tailwind CSS
+- Hono + TypeScript + PostgreSQL
+- Docker Compose
 
-前端生产容器会把 `/api` 反代到后端容器。后端端口默认只绑定宿主机 `127.0.0.1`，公网只需要暴露前端端口。修改 `APP_PASSWORD` 或 `API_TOKEN` 后需要重启后端容器。
+## License
 
-## 镜像发布
-
-`.github/workflows/docker-publish.yml` 会在以下情况构建 Docker 镜像：
-
-- push 到 `main`
-- push `v*.*.*` tag
-- pull request，仅构建校验，不推送
-- 手动 `workflow_dispatch`
-
-推送到 `main` 后会发布 `latest`、`main` 和 `sha-*` tag。版本 tag 例如 `v0.1.0` 会额外发布 `0.1.0` 和 `0.1` tag。
-
-如果 GitHub Packages 默认没有公开，请在仓库的 Packages 页面把 `mileage-api` 和 `mileage-frontend` 设置为 public。
-
-## 数据库
-
-schema migration 位于：
-
-```text
-backend/migrations/001_init.sql
-backend/migrations/002_item_expenses.sql
-```
-
-API 启动时会自动执行尚未应用的 migration，并记录到 `mileage_schema_migrations`。旧部署如果已经通过 PostgreSQL 初始化脚本建过表，API 会自动 baseline，不会重复执行旧 migration。
-
-## API 认证
-
-登录接口：
-
-```text
-POST /api/auth/login
-```
-
-请求体：
-
-```json
-{ "password": "<APP_PASSWORD>" }
-```
-
-响应会返回短期会话 token。除 `/api/auth/login` 外，所有 `/api/*` 请求都需要：
-
-```http
-Authorization: Bearer <session_token>
-```
-
-`/health` 不需要认证，供容器健康检查或反代探活使用。
-
-## 核心 API
-
-```text
-GET    /api/items
-GET    /api/items?status=active
-GET    /api/items/:id
-POST   /api/items
-PUT    /api/items/:id
-DELETE /api/items/:id
-PATCH  /api/items/:id/retire
-PATCH  /api/items/:id/sell
-GET    /api/items/:id/expenses
-POST   /api/items/:id/expenses
-DELETE /api/items/:id/expenses/:expenseId
-
-POST   /api/auth/login
-GET    /api/auth/session
-
-GET    /api/stats/dashboard
-GET    /api/stats/cost-trend/:id
-
-POST   /api/ocr/parse
-```
-
-`DELETE` 是软删除，会写入 `deleted_at`。
-
-## 成本计算
-
-后端是成本计算的权威来源：
-
-```text
-daily_cost = (purchase_price + expense_total - recovered_value) / days_owned
-annual_cost = daily_cost * 365
-```
-
-`recovered_value` 规则：
-
-- 已转手物品使用 `sold_price`
-- 其他物品使用 `residual_value`
-
-`expense_total` 是勾选“计入总拥有成本”的后续支出合计，例如维修、换电池、保养、配件等。免费保修或只想留档的记录可以取消计入成本。
-
-生命周期天数规则：
-
-- 使用中：从 `purchase_date` 计算到今天
-- 已退役：从 `purchase_date` 计算到 `retired_at`
-- 已转手：从 `purchase_date` 计算到 `sold_at`
-
-同一天购入的物品按至少 1 天计算，避免除以 0。
+Mileage is licensed under the [GNU Affero General Public License v3.0](LICENSE).
