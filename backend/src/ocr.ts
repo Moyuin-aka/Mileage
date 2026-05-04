@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -13,8 +13,8 @@ export interface RapidOcrOutput {
 }
 
 const OCR_PYTHON_BIN = process.env.OCR_PYTHON_BIN ?? 'python3'
-const OCR_SCRIPT_PATH =
-  process.env.OCR_SCRIPT_PATH ?? path.resolve(process.cwd(), 'ocr/rapidocr_runner.py')
+const OCR_WORKER_SCRIPT_PATH =
+  process.env.OCR_WORKER_SCRIPT_PATH ?? path.resolve(process.cwd(), 'ocr/rapidocr_worker.py')
 const OCR_TIMEOUT_MS = Number.parseInt(process.env.OCR_TIMEOUT_MS ?? '90000', 10)
 const OCR_MAX_UPLOAD_BYTES = Number.parseInt(
   process.env.OCR_MAX_UPLOAD_BYTES ?? String(8 * 1024 * 1024),
@@ -22,6 +22,7 @@ const OCR_MAX_UPLOAD_BYTES = Number.parseInt(
 )
 
 export async function parseOrderImage(file: UploadedImage): Promise<OcrParseResult> {
+  const startedAt = Date.now()
   if (!file.type.startsWith('image/')) {
     throw new ValidationError(['OCR only accepts image uploads'])
   }
@@ -35,7 +36,21 @@ export async function parseOrderImage(file: UploadedImage): Promise<OcrParseResu
   }
 
   const ocrOutput = await runRapidOcr(buffer, extensionFor(file))
-  return parseOcrLines(ocrOutput.lines, ocrOutput.image)
+  const result = parseOcrLines(ocrOutput.lines, ocrOutput.image)
+  console.info(
+    `OCR completed in ${Date.now() - startedAt}ms, engine ${Math.round(
+      (ocrOutput.elapsed ?? 0) * 1000,
+    )}ms, lines ${ocrOutput.lines.length}`,
+  )
+  return result
+}
+
+export async function warmOcrWorker() {
+  await waitForWorkerReady()
+}
+
+export function shutdownOcrWorker() {
+  stopWorker(new Error('OCR worker stopped'))
 }
 
 export function isUploadedImage(value: unknown): value is UploadedImage {
@@ -57,60 +72,157 @@ async function runRapidOcr(buffer: Buffer, extension: string): Promise<RapidOcrO
 
   try {
     await writeFile(imagePath, buffer)
-    const output = await runPython(imagePath)
-    return parseRunnerOutput(output)
+    return await runPythonWorker(imagePath)
   } finally {
     await rm(workDir, { recursive: true, force: true }).catch(() => undefined)
   }
 }
 
-function runPython(imagePath: string) {
-  return new Promise<string>((resolve, reject) => {
-    const child = spawn(OCR_PYTHON_BIN, [OCR_SCRIPT_PATH, imagePath], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: {
-        ...process.env,
-        OMP_NUM_THREADS: process.env.OCR_OMP_NUM_THREADS ?? process.env.OMP_NUM_THREADS ?? '1',
-      },
-    })
+interface WorkerMessage extends RapidOcrOutput {
+  id?: string | null
+  ok?: boolean
+  ready?: boolean
+  error?: string
+}
 
-    let stdout = ''
-    let stderr = ''
+interface PendingRequest {
+  resolve: (value: RapidOcrOutput) => void
+  reject: (error: Error) => void
+  timer: NodeJS.Timeout
+}
+
+let worker: ChildProcessWithoutNullStreams | null = null
+let workerReady = false
+let workerBuffer = ''
+const pendingRequests = new Map<string, PendingRequest>()
+const readyWaiters: Array<{ resolve: () => void; reject: (error: Error) => void }> = []
+
+function runPythonWorker(imagePath: string) {
+  return new Promise<RapidOcrOutput>((resolve, reject) => {
+    const child = ensureWorker()
+    const id = randomUUID()
     const timer = setTimeout(() => {
-      child.kill('SIGKILL')
+      pendingRequests.delete(id)
+      restartWorker(new Error(`OCR timed out after ${OCR_TIMEOUT_MS}ms`))
       reject(new Error(`OCR timed out after ${OCR_TIMEOUT_MS}ms`))
     }, OCR_TIMEOUT_MS)
 
-    child.stdout.setEncoding('utf8')
-    child.stderr.setEncoding('utf8')
-    child.stdout.on('data', chunk => {
-      stdout += chunk
-    })
-    child.stderr.on('data', chunk => {
-      stderr += chunk
-    })
-    child.on('error', error => {
+    pendingRequests.set(id, { resolve, reject, timer })
+    child.stdin.write(`${JSON.stringify({ id, image_path: imagePath })}\n`, error => {
+      if (!error) return
       clearTimeout(timer)
+      pendingRequests.delete(id)
       reject(error)
-    })
-    child.on('close', code => {
-      clearTimeout(timer)
-      if (code === 0) {
-        resolve(stdout)
-        return
-      }
-
-      reject(new Error(stderr.trim() || `OCR process exited with code ${code}`))
     })
   })
 }
 
-function parseRunnerOutput(output: string): RapidOcrOutput {
-  const parsed = JSON.parse(output) as RapidOcrOutput
-  return {
-    lines: Array.isArray(parsed.lines) ? parsed.lines : [],
-    image: parsed.image,
-    elapsed: parsed.elapsed,
+function waitForWorkerReady() {
+  if (workerReady) return Promise.resolve()
+
+  ensureWorker()
+  return new Promise<void>((resolve, reject) => {
+    readyWaiters.push({ resolve, reject })
+  })
+}
+
+function ensureWorker() {
+  if (worker && !worker.killed) return worker
+
+  workerReady = false
+  workerBuffer = ''
+  worker = spawn(OCR_PYTHON_BIN, [OCR_WORKER_SCRIPT_PATH], {
+    stdio: ['pipe', 'pipe', 'pipe'],
+    env: {
+      ...process.env,
+      OMP_NUM_THREADS: process.env.OCR_OMP_NUM_THREADS ?? process.env.OMP_NUM_THREADS ?? '1',
+    },
+  })
+
+  worker.stdout.setEncoding('utf8')
+  worker.stderr.setEncoding('utf8')
+  worker.stdout.on('data', chunk => {
+    workerBuffer += chunk
+    drainWorkerOutput()
+  })
+  worker.stderr.on('data', chunk => {
+    console.error(`[ocr] ${chunk.trim()}`)
+  })
+  worker.on('error', error => {
+    stopWorker(error)
+  })
+  worker.on('close', code => {
+    stopWorker(new Error(`OCR worker exited with code ${code ?? 'unknown'}`))
+  })
+
+  return worker
+}
+
+function drainWorkerOutput() {
+  let newlineIndex = workerBuffer.indexOf('\n')
+  while (newlineIndex >= 0) {
+    const rawLine = workerBuffer.slice(0, newlineIndex).trim()
+    workerBuffer = workerBuffer.slice(newlineIndex + 1)
+    if (rawLine) {
+      try {
+        handleWorkerMessage(JSON.parse(rawLine) as WorkerMessage)
+      } catch (error) {
+        console.error('[ocr] Invalid worker output', error)
+      }
+    }
+    newlineIndex = workerBuffer.indexOf('\n')
+  }
+}
+
+function handleWorkerMessage(message: WorkerMessage) {
+  if (message.ready) {
+    workerReady = true
+    const waiters = readyWaiters.splice(0)
+    for (const waiter of waiters) waiter.resolve()
+    return
+  }
+
+  if (!message.id) return
+  const pending = pendingRequests.get(message.id)
+  if (!pending) return
+  pendingRequests.delete(message.id)
+  clearTimeout(pending.timer)
+
+  if (message.ok) {
+    pending.resolve({
+      lines: Array.isArray(message.lines) ? message.lines : [],
+      image: message.image,
+      elapsed: message.elapsed,
+    })
+    return
+  }
+
+  pending.reject(new Error(message.error || 'OCR worker failed'))
+}
+
+function restartWorker(error: Error) {
+  const currentWorker = worker
+  stopWorker(error)
+  currentWorker?.kill('SIGKILL')
+}
+
+function stopWorker(error: Error) {
+  const currentWorker = worker
+  worker = null
+  workerReady = false
+  workerBuffer = ''
+
+  for (const request of pendingRequests.values()) {
+    clearTimeout(request.timer)
+    request.reject(error)
+  }
+  pendingRequests.clear()
+
+  const waiters = readyWaiters.splice(0)
+  for (const waiter of waiters) waiter.reject(error)
+
+  if (currentWorker && !currentWorker.killed) {
+    currentWorker.kill()
   }
 }
 

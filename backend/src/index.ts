@@ -7,7 +7,7 @@ import type { Context } from 'hono'
 import type { ExpenseInput, ItemInput } from './types.js'
 import { mapExpense, mapItem, pool } from './db.js'
 import { runMigrations } from './migrations.js'
-import { isUploadedImage, parseOrderImage } from './ocr.js'
+import { isUploadedImage, parseOrderImage, shutdownOcrWorker, warmOcrWorker } from './ocr.js'
 import { computeItemStats, generateCostTrend, todayDateOnly } from './stats.js'
 import {
   normalizeExpenseInput,
@@ -277,9 +277,25 @@ app.onError((error, c) => {
 
 await runMigrations()
 
+void warmOcrWorker()
+  .then(() => {
+    console.log('OCR worker ready')
+  })
+  .catch(error => {
+    console.error('OCR worker failed to warm up', error)
+  })
+
 serve({ fetch: app.fetch, port: PORT }, info => {
   console.log(`Mileage API listening on http://localhost:${info.port}`)
 })
+
+process.once('SIGINT', shutdown)
+process.once('SIGTERM', shutdown)
+
+function shutdown() {
+  shutdownOcrWorker()
+  process.exit(0)
+}
 
 async function readJson<T>(c: Context): Promise<T> {
   try {
