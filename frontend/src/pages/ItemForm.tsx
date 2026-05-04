@@ -62,7 +62,7 @@ export function ItemForm() {
   const { id } = useParams<{ id: string }>()
   const isEditing = Boolean(id)
 
-  const { item, loading: itemLoading } = useItem(id ?? '__none__')
+  const { item, loading: itemLoading } = useItem(id)
   const mutations = useItemMutations(() => navigate(isEditing ? `/item/${id}` : '/'))
 
   const fileInputRef = useRef<HTMLInputElement>(null)

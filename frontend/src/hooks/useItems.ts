@@ -62,12 +62,19 @@ export function useDashboard() {
   return { stats, loading, error, reload: load }
 }
 
-export function useItem(id: string) {
+export function useItem(id?: string) {
   const [item, setItem] = useState<ItemWithStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
+    if (!id) {
+      setItem(null)
+      setLoading(false)
+      setError(null)
+      return
+    }
+
     setLoading(true)
     setError(null)
     try {
