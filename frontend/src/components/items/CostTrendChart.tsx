@@ -18,6 +18,11 @@ interface CostTrendChartProps {
   todayDay?: number
   compareData?: CostTrendPoint[]
   compareLabel?: string
+  referenceBand?: {
+    min: number
+    max: number
+    label: string
+  }
 }
 
 function CustomTooltip({ active, payload }: TooltipProps<number, string>) {
@@ -51,6 +56,7 @@ export function CostTrendChart({
   todayDay,
   compareData,
   compareLabel,
+  referenceBand,
 }: CostTrendChartProps) {
   const { t } = useLanguage()
 
@@ -59,8 +65,9 @@ export function CostTrendChart({
     return { ...pt, compare_cost: cmp?.daily_cost }
   })
 
-  const minCost = Math.min(...data.map(d => d.daily_cost))
-  const maxCost = Math.max(...data.map(d => d.daily_cost))
+  const referenceValues = referenceBand ? [referenceBand.min, referenceBand.max] : []
+  const minCost = Math.min(...data.map(d => d.daily_cost), ...referenceValues)
+  const maxCost = Math.max(...data.map(d => d.daily_cost), ...referenceValues)
 
   return (
     <div className="w-full">
@@ -98,6 +105,29 @@ export function CostTrendChart({
               strokeWidth={1}
               label={{ value: t('chart.today'), fill: '#4ade80', fontSize: 11, position: 'insideTopRight' }}
             />
+          )}
+
+          {referenceBand && (
+            <>
+              <ReferenceLine
+                y={referenceBand.max}
+                stroke="#f59e0b"
+                strokeDasharray="4 4"
+                strokeWidth={1}
+                label={{
+                  value: referenceBand.label,
+                  fill: '#d97706',
+                  fontSize: 10,
+                  position: 'insideTopLeft',
+                }}
+              />
+              <ReferenceLine
+                y={referenceBand.min}
+                stroke="#f59e0b"
+                strokeDasharray="2 4"
+                strokeWidth={1}
+              />
+            </>
           )}
 
           <Line
