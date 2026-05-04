@@ -25,6 +25,9 @@ services:
       API_TOKEN: ${API_TOKEN:?API_TOKEN is required}
       DATABASE_URL: postgres://${POSTGRES_USER:-mileage}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:-mileage}
       DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
+      OCR_TIMEOUT_MS: ${OCR_TIMEOUT_MS:-90000}
+      OCR_MAX_UPLOAD_BYTES: ${OCR_MAX_UPLOAD_BYTES:-8388608}
+      OCR_OMP_NUM_THREADS: ${OCR_OMP_NUM_THREADS:-1}
     depends_on:
       db:
         condition: service_healthy

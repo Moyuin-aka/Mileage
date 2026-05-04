@@ -10,9 +10,6 @@ import {
   ItemCategory,
   ItemExpense,
   ItemStatus,
-  CATEGORY_LABELS,
-  EXPENSE_TYPE_LABELS,
-  STATUS_LABELS,
 } from '@/types'
 import { useItem, useItemMutations } from '@/hooks/useItems'
 import { generateCostTrend, formatCNY, formatDailyCost } from '@/lib/calculations'
@@ -31,19 +28,16 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { useLanguage } from '@/i18n'
 
 const EXPENSE_TYPES: ExpenseType[] = [
-  'repair',
-  'battery',
-  'maintenance',
-  'accessory',
-  'warranty',
-  'other',
+  'repair', 'battery', 'maintenance', 'accessory', 'warranty', 'other',
 ]
 
 export function ItemDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { t, categoryLabels, statusLabels, expenseTypeLabels } = useLanguage()
   const { item, loading, error, reload } = useItem(id!)
   const mutations = useItemMutations(reload)
 
@@ -63,9 +57,9 @@ export function ItemDetail() {
   if (error || !item) {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
-        <p className="font-serif text-zinc-300 text-lg mb-2">物品不存在</p>
+        <p className="font-serif text-zinc-300 text-lg mb-2">{t('detail.notFound')}</p>
         <p className="text-zinc-600 text-sm mb-6">{error}</p>
-        <Button variant="outline" onClick={() => navigate('/')}>返回首页</Button>
+        <Button variant="outline" onClick={() => navigate('/')}>{t('detail.backHome')}</Button>
       </div>
     )
   }
@@ -127,7 +121,7 @@ export function ItemDetail() {
           className="flex items-center gap-1.5 text-zinc-500 hover:text-zinc-300 transition-colors text-sm"
         >
           <ArrowLeft className="h-4 w-4" />
-          返回
+          {t('detail.back')}
         </button>
 
         {item.status === 'active' && (
@@ -138,15 +132,15 @@ export function ItemDetail() {
               onClick={() => navigate(`/edit/${item.id}`)}
             >
               <Edit3 className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">编辑</span>
+              <span className="hidden sm:inline">{t('detail.edit')}</span>
             </Button>
             <Button variant="outline" size="sm" onClick={() => setRetireOpen(true)}>
               <Archive className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">退役</span>
+              <span className="hidden sm:inline">{t('detail.retire')}</span>
             </Button>
             <Button variant="outline" size="sm" onClick={() => setSellOpen(true)}>
               <DollarSign className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">转手</span>
+              <span className="hidden sm:inline">{t('detail.sell')}</span>
             </Button>
           </div>
         )}
@@ -170,18 +164,18 @@ export function ItemDetail() {
           {item.is_overdue && (
             <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-amber-950 border border-amber-900 text-amber-400 text-2xs font-medium shrink-0 mt-1">
               <AlertTriangle className="h-3 w-3" />
-              已超预期年限
+              {t('detail.overdue')}
             </span>
           )}
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <CategoryBadge
             category={item.category as ItemCategory}
-            label={CATEGORY_LABELS[item.category as ItemCategory]}
+            label={categoryLabels[item.category as ItemCategory]}
           />
           <StatusBadge
             status={item.status as ItemStatus}
-            label={STATUS_LABELS[item.status as ItemStatus]}
+            label={statusLabels[item.status as ItemStatus]}
           />
         </div>
       </div>
@@ -189,32 +183,32 @@ export function ItemDetail() {
       {/* Hero cost stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="col-span-2 lg:col-span-1 rounded-xl border border-accent-muted bg-accent-bg p-4">
-          <p className="text-2xs text-accent/60 uppercase tracking-widest mb-2">总拥有日均</p>
+          <p className="text-2xs text-accent/60 uppercase tracking-widest mb-2">{t('detail.totalDaily')}</p>
           <div className="flex items-baseline gap-1">
             <span className="font-mono text-4xl font-bold text-accent leading-none">
               {formatDailyCost(item.daily_cost)}
             </span>
-            <span className="text-accent/60 text-sm">元/天</span>
+            <span className="text-accent/60 text-sm">{t('detail.perDay')}</span>
           </div>
         </div>
         <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-          <p className="text-2xs text-zinc-600 uppercase tracking-widest mb-2">基础日均</p>
+          <p className="text-2xs text-zinc-600 uppercase tracking-widest mb-2">{t('detail.baseDaily')}</p>
           <div className="flex items-baseline gap-1">
             <span className="font-mono text-xl font-semibold text-zinc-100">
               {formatDailyCost(item.base_daily_cost)}
             </span>
-            <span className="text-zinc-600 text-xs">元/天</span>
+            <span className="text-zinc-600 text-xs">{t('detail.perDay')}</span>
           </div>
         </div>
         <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-          <p className="text-2xs text-zinc-600 uppercase tracking-widest mb-2">后续支出</p>
+          <p className="text-2xs text-zinc-600 uppercase tracking-widest mb-2">{t('detail.expenses')}</p>
           <p className="font-mono text-xl font-semibold text-zinc-100">{formatCNY(expenseTotal, 0)}</p>
         </div>
         <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-          <p className="text-2xs text-zinc-600 uppercase tracking-widest mb-2">已持有</p>
+          <p className="text-2xs text-zinc-600 uppercase tracking-widest mb-2">{t('detail.daysOwned')}</p>
           <div className="flex items-baseline gap-1">
             <span className="font-mono text-xl font-semibold text-zinc-100">{item.days_owned}</span>
-            <span className="text-zinc-500 text-sm">天</span>
+            <span className="text-zinc-500 text-sm">{t('detail.days')}</span>
           </div>
         </div>
       </div>
@@ -223,54 +217,55 @@ export function ItemDetail() {
       <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="font-serif text-sm text-zinc-100">成本下降曲线</h2>
-            <p className="text-2xs text-zinc-600 mt-0.5">随持有时间增加，日均成本持续下降</p>
+            <h2 className="font-serif text-sm text-zinc-100">{t('detail.costCurve')}</h2>
+            <p className="text-2xs text-zinc-600 mt-0.5">{t('detail.costCurveHint')}</p>
           </div>
         </div>
         <CostTrendChart data={trendData} todayDay={item.days_owned} />
         <div className="mt-4 rounded-lg bg-zinc-950 border border-zinc-800 p-3">
           <p className="text-xs text-zinc-500">
-            再持有{' '}
-            <span className="text-zinc-300 font-medium">365</span> 天，日均成本将降至{' '}
+            {t('detail.costForecastPrefix')}{' '}
+            <span className="text-zinc-300 font-medium">365</span>{' '}
+            {t('detail.costForecastMid')}{' '}
             <span className="font-mono text-accent font-semibold">
               {formatDailyCost(
                 (item.purchase_price + expenseTotal - (item.residual_value ?? 0)) / (item.days_owned + 365),
               )}
             </span>{' '}
-            元/天
+            {t('detail.costForecastSuffix')}
           </p>
         </div>
       </div>
 
       {/* Full info */}
       <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 space-y-4">
-        <h2 className="font-serif text-sm text-zinc-100">详细信息</h2>
+        <h2 className="font-serif text-sm text-zinc-100">{t('detail.info')}</h2>
         <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-          <InfoRow icon={DollarSign} label="购入价格" value={formatCNY(item.purchase_price)} />
-          <InfoRow icon={DollarSign} label="预估残值" value={formatCNY(item.residual_value)} />
-          <InfoRow icon={Wrench} label="计入成本的后续支出" value={formatCNY(expenseTotal)} />
-          <InfoRow icon={DollarSign} label="总拥有成本" value={formatCNY(item.total_cost)} />
+          <InfoRow icon={DollarSign} label={t('detail.purchasePrice')} value={formatCNY(item.purchase_price)} />
+          <InfoRow icon={DollarSign} label={t('detail.residualValue')} value={formatCNY(item.residual_value)} />
+          <InfoRow icon={Wrench} label={t('detail.includedExpenses')} value={formatCNY(expenseTotal)} />
+          <InfoRow icon={DollarSign} label={t('detail.totalCost')} value={formatCNY(item.total_cost)} />
           <InfoRow
             icon={Calendar}
-            label="购入日期"
+            label={t('detail.purchaseDate')}
             value={formatDate(item.purchase_date)}
             colSpan
           />
           {item.expected_years && (
             <InfoRow
               icon={Calendar}
-              label="预期使用年限"
-              value={`${item.expected_years} 年`}
+              label={t('detail.expectedYears')}
+              value={`${item.expected_years} ${t('detail.yearUnit')}`}
             />
           )}
           {item.purchase_channel && (
-            <InfoRow icon={ShoppingBag} label="购买渠道" value={item.purchase_channel} />
+            <InfoRow icon={ShoppingBag} label={t('detail.channel')} value={item.purchase_channel} />
           )}
           {item.retired_at && (
-            <InfoRow icon={Calendar} label="退役日期" value={formatDate(item.retired_at)} />
+            <InfoRow icon={Calendar} label={t('detail.retiredAt')} value={formatDate(item.retired_at)} />
           )}
           {item.sold_price != null && (
-            <InfoRow icon={DollarSign} label="转手价格" value={formatCNY(item.sold_price)} />
+            <InfoRow icon={DollarSign} label={t('detail.soldPrice')} value={formatCNY(item.sold_price)} />
           )}
         </div>
         {item.notes && (
@@ -287,18 +282,18 @@ export function ItemDetail() {
       <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 space-y-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="font-serif text-sm text-zinc-100">后续支出</h2>
-            <p className="text-2xs text-zinc-600 mt-0.5">维修、电池、配件等可单独记录，按需计入总拥有成本</p>
+            <h2 className="font-serif text-sm text-zinc-100">{t('detail.laterExpenses')}</h2>
+            <p className="text-2xs text-zinc-600 mt-0.5">{t('detail.laterExpensesHint')}</p>
           </div>
           <Button variant="outline" size="sm" onClick={() => setExpenseOpen(true)}>
             <PlusCircle className="h-3.5 w-3.5" />
-            添加
+            {t('detail.addExpense')}
           </Button>
         </div>
 
         {expenses.length === 0 ? (
           <div className="rounded-lg border border-dashed border-zinc-800 bg-zinc-950/40 p-4 text-sm text-zinc-600">
-            还没有记录维修、换电池或配件支出。
+            {t('detail.noExpenses')}
           </div>
         ) : (
           <div className="space-y-2">
@@ -306,6 +301,7 @@ export function ItemDetail() {
               <ExpenseRow
                 key={expense.id}
                 expense={expense}
+                expenseTypeLabel={expenseTypeLabels[expense.type]}
                 onDelete={() => handleDeleteExpense(expense.id)}
                 deleting={mutations.saving}
               />
@@ -316,11 +312,11 @@ export function ItemDetail() {
         {expenseTotal > 0 && (
           <div className="rounded-lg bg-zinc-950 border border-zinc-800 p-3">
             <p className="text-xs text-zinc-500">
-              后续支出已让日均成本增加{' '}
+              {t('detail.expenseImpactPrefix')}{' '}
               <span className="font-mono text-zinc-300">
                 {formatDailyCost(item.daily_cost - item.base_daily_cost)}
               </span>{' '}
-              元/天。
+              {t('detail.expenseImpactSuffix')}
             </p>
           </div>
         )}
@@ -337,14 +333,14 @@ export function ItemDetail() {
       <Dialog open={retireOpen} onOpenChange={setRetireOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>标记为已退役</DialogTitle>
+            <DialogTitle>{t('retire.title')}</DialogTitle>
           </DialogHeader>
           <DialogBody className="space-y-4">
             <p className="text-sm text-zinc-400">
-              将「{item.name}」标记为已退役后，日均成本将锁定至退役日期。
+              {t('retire.bodyPrefix')}{item.name}{t('retire.bodyMid')}
             </p>
             <div className="space-y-1.5">
-              <Label htmlFor="retire-date">退役日期</Label>
+              <Label htmlFor="retire-date">{t('retire.date')}</Label>
               <Input
                 id="retire-date"
                 type="date"
@@ -356,7 +352,7 @@ export function ItemDetail() {
           </DialogBody>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="ghost" size="sm">取消</Button>
+              <Button variant="ghost" size="sm">{t('dialog.cancel')}</Button>
             </DialogClose>
             <Button
               variant="outline"
@@ -364,7 +360,7 @@ export function ItemDetail() {
               onClick={handleRetire}
               disabled={mutations.saving}
             >
-              确认退役
+              {t('retire.submit')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -374,14 +370,14 @@ export function ItemDetail() {
       <Dialog open={sellOpen} onOpenChange={setSellOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>标记为已转手</DialogTitle>
+            <DialogTitle>{t('sell.title')}</DialogTitle>
           </DialogHeader>
           <DialogBody className="space-y-4">
             <p className="text-sm text-zinc-400">
-              记录「{item.name}」的转手价格，将自动计算实际净损耗。
+              {t('sell.bodyPrefix')}{item.name}{t('sell.bodyMid')}
             </p>
             <div className="space-y-1.5">
-              <Label htmlFor="sold-price">转手价格</Label>
+              <Label htmlFor="sold-price">{t('sell.price')}</Label>
               <Input
                 id="sold-price"
                 type="number"
@@ -394,17 +390,17 @@ export function ItemDetail() {
             {soldPrice && !isNaN(parseFloat(soldPrice)) && (
               <div className="rounded-lg bg-zinc-950 border border-zinc-800 p-3">
                 <p className="text-xs text-zinc-500">
-                  净损耗:{' '}
+                  {t('detail.sellNetLoss')}{' '}
                   <span className="text-zinc-300 font-mono font-medium">
                     {formatCNY(item.purchase_price + expenseTotal - parseFloat(soldPrice))}
                   </span>
                   {' · '}
-                  持有 {item.days_owned} 天 · 实际日均:{' '}
+                  {t('detail.sellHeld')} {item.days_owned} {t('detail.sellActualDaily')}{' '}
                   <span className="font-mono text-accent font-semibold">
                     {formatDailyCost(
                       Math.max(0, item.purchase_price + expenseTotal - parseFloat(soldPrice)) / item.days_owned,
                     )}{' '}
-                    元/天
+                    {t('detail.perDay')}
                   </span>
                 </p>
               </div>
@@ -412,7 +408,7 @@ export function ItemDetail() {
           </DialogBody>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="ghost" size="sm">取消</Button>
+              <Button variant="ghost" size="sm">{t('dialog.cancel')}</Button>
             </DialogClose>
             <Button
               variant="accent"
@@ -420,7 +416,7 @@ export function ItemDetail() {
               onClick={handleSell}
               disabled={mutations.saving || !soldPrice}
             >
-              确认转手
+              {t('sell.submit')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -430,12 +426,12 @@ export function ItemDetail() {
       <Dialog open={expenseOpen} onOpenChange={setExpenseOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>添加后续支出</DialogTitle>
+            <DialogTitle>{t('expenseDialog.title')}</DialogTitle>
           </DialogHeader>
           <DialogBody className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>类型</Label>
+                <Label>{t('expenseDialog.type')}</Label>
                 <Select value={expenseType} onValueChange={v => setExpenseType(v as ExpenseType)}>
                   <SelectTrigger>
                     <SelectValue />
@@ -443,14 +439,14 @@ export function ItemDetail() {
                   <SelectContent>
                     {EXPENSE_TYPES.map(type => (
                       <SelectItem key={type} value={type}>
-                        {EXPENSE_TYPE_LABELS[type]}
+                        {expenseTypeLabels[type]}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="expense-amount">金额</Label>
+                <Label htmlFor="expense-amount">{t('expenseDialog.amount')}</Label>
                 <Input
                   id="expense-amount"
                   type="number"
@@ -465,7 +461,7 @@ export function ItemDetail() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="expense-date">日期</Label>
+              <Label htmlFor="expense-date">{t('expenseDialog.date')}</Label>
               <Input
                 id="expense-date"
                 type="date"
@@ -477,10 +473,10 @@ export function ItemDetail() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="expense-description">说明</Label>
+              <Label htmlFor="expense-description">{t('expenseDialog.description')}</Label>
               <Input
                 id="expense-description"
-                placeholder="例如：Apple Store 更换电池"
+                placeholder={t('expenseDialog.descPlaceholder')}
                 value={expenseDescription}
                 onChange={e => setExpenseDescription(e.target.value)}
               />
@@ -494,16 +490,16 @@ export function ItemDetail() {
                 className="mt-0.5 h-4 w-4 rounded border-zinc-700 bg-zinc-900 accent-accent"
               />
               <span>
-                <span className="block text-sm text-zinc-300">计入总拥有成本</span>
+                <span className="block text-sm text-zinc-300">{t('expenseDialog.countInCost')}</span>
                 <span className="block text-xs text-zinc-600 mt-0.5">
-                  免费保修或只想留档的记录可以取消勾选。
+                  {t('expenseDialog.countInCostHint')}
                 </span>
               </span>
             </label>
           </DialogBody>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="ghost" size="sm">取消</Button>
+              <Button variant="ghost" size="sm">{t('dialog.cancel')}</Button>
             </DialogClose>
             <Button
               variant="accent"
@@ -511,7 +507,7 @@ export function ItemDetail() {
               onClick={handleCreateExpense}
               disabled={mutations.saving || !expenseAmount}
             >
-              添加支出
+              {t('expenseDialog.submit')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -521,16 +517,16 @@ export function ItemDetail() {
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>删除记录</DialogTitle>
+            <DialogTitle>{t('deleteDialog.title')}</DialogTitle>
           </DialogHeader>
           <DialogBody>
             <p className="text-sm text-zinc-400">
-              确定要删除「{item.name}」的记录吗？此操作不可恢复。
+              {t('deleteDialog.bodyPrefix')}{item.name}{t('deleteDialog.bodyMid')}
             </p>
           </DialogBody>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="ghost" size="sm">取消</Button>
+              <Button variant="ghost" size="sm">{t('dialog.cancel')}</Button>
             </DialogClose>
             <Button
               variant="destructive"
@@ -538,7 +534,7 @@ export function ItemDetail() {
               onClick={handleDelete}
               disabled={mutations.saving}
             >
-              删除
+              {t('deleteDialog.submit')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -571,13 +567,16 @@ function InfoRow({
 
 function ExpenseRow({
   expense,
+  expenseTypeLabel,
   onDelete,
   deleting,
 }: {
   expense: ItemExpense
+  expenseTypeLabel: string
   onDelete: () => void
   deleting: boolean
 }) {
+  const { t } = useLanguage()
   const Icon = expenseIcon(expense.type)
 
   return (
@@ -588,10 +587,10 @@ function ExpenseRow({
         </div>
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm text-zinc-200">{EXPENSE_TYPE_LABELS[expense.type]}</span>
+            <span className="text-sm text-zinc-200">{expenseTypeLabel}</span>
             {!expense.counts_in_cost && (
               <span className="rounded-full border border-zinc-800 px-2 py-0.5 text-2xs text-zinc-600">
-                仅记录
+                {t('detail.recordOnly')}
               </span>
             )}
           </div>
@@ -614,7 +613,7 @@ function ExpenseRow({
           size="icon"
           onClick={onDelete}
           disabled={deleting}
-          aria-label="删除支出"
+          aria-label={t('detail.expenseAriaDelete')}
           className="h-8 w-8"
         >
           <Trash2 className="h-3.5 w-3.5" />

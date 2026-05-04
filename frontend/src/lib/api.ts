@@ -6,6 +6,7 @@ import {
   ItemExpense,
   ItemFormData,
   ItemWithStats,
+  OcrParseResult,
 } from '@/types'
 import { getAuthToken, logout } from '@/lib/auth'
 
@@ -104,11 +105,11 @@ export const api = {
   getCostTrend: (id: string) =>
     request<CostTrendPoint[]>(`/api/stats/cost-trend/${id}`),
 
-  // ── OCR (Phase 2 placeholder) ──────────────────────────────────────────────
+  // ── OCR ───────────────────────────────────────────────────────────────────
   parseOcr: (file: File) => {
     const form = new FormData()
     form.append('image', file)
-    return request<Partial<ItemFormData>>('/api/ocr/parse', {
+    return request<OcrParseResult>('/api/ocr/parse', {
       method: 'POST',
       body: form,
       headers: authHeader(),

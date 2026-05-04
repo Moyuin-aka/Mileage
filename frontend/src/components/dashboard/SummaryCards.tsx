@@ -2,45 +2,48 @@ import { Package, Zap, Wallet, TrendingDown } from 'lucide-react'
 import { DashboardStats } from '@/types'
 import { formatCNY, formatDailyCost } from '@/lib/calculations'
 import { cn } from '@/lib/utils'
+import { useLanguage } from '@/i18n'
 
 interface SummaryCardsProps {
   stats: DashboardStats
 }
 
 export function SummaryCards({ stats }: SummaryCardsProps) {
+  const { t } = useLanguage()
+
   const cards = [
     {
       icon: Package,
-      label: '使用中资产',
+      label: t('summary.activeAssets'),
       value: `${stats.active_count}`,
-      unit: '件',
-      sub: `共 ${stats.total_items} 件记录`,
+      unit: t('summary.unit'),
+      sub: t('summary.totalItems', { n: stats.total_items }),
       accent: false,
     },
     {
       icon: Wallet,
-      label: '总投入',
+      label: t('summary.totalInvested'),
       value: formatCNY(stats.total_invested, 0),
       unit: '',
       sub: stats.total_expenses
-        ? `含后续支出 ${formatCNY(stats.total_expenses, 0)}`
-        : '历史购入总价',
+        ? t('summary.inclExpenses', { amount: formatCNY(stats.total_expenses, 0) })
+        : t('summary.totalPurchase'),
       accent: false,
     },
     {
       icon: TrendingDown,
-      label: '平均日均成本',
+      label: t('summary.avgDailyCost'),
       value: formatDailyCost(stats.avg_daily_cost),
-      unit: '元/天',
-      sub: '所有使用中资产均值',
+      unit: t('summary.perDay'),
+      sub: t('summary.avgAllActive'),
       accent: true,
     },
     {
       icon: Zap,
-      label: '已归档',
+      label: t('summary.archived'),
       value: `${stats.retired_count + stats.sold_count}`,
-      unit: '件',
-      sub: `退役 ${stats.retired_count} · 转手 ${stats.sold_count}`,
+      unit: t('summary.unit'),
+      sub: t('summary.retiredSold', { retired: stats.retired_count, sold: stats.sold_count }),
       accent: false,
     },
   ]
