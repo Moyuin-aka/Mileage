@@ -5,7 +5,7 @@
 
   <p>
     <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-AGPL--3.0-blue.svg"></a>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.1.0-44cc7a.svg">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.2.0-44cc7a.svg">
     <img alt="Docker" src="https://img.shields.io/badge/docker-GHCR-2496ED.svg?logo=docker&logoColor=white">
     <img alt="Self hosted" src="https://img.shields.io/badge/self--hosted-Docker%20Compose-111827.svg">
   </p>
@@ -82,15 +82,15 @@ Replace `localhost` with your server address when deploying remotely.
 Pre-built images are published on GitHub Container Registry:
 
 ```text
-ghcr.io/moyuin-aka/mileage-api:0.1.0
-ghcr.io/moyuin-aka/mileage-frontend:0.1.0
+ghcr.io/moyuin-aka/mileage-api:0.2.0
+ghcr.io/moyuin-aka/mileage-frontend:0.2.0
 ```
 
 `compose.release.yml` uses `latest` by default. To pin a specific version, set in `.env`:
 
 ```bash
-MILEAGE_API_IMAGE=ghcr.io/moyuin-aka/mileage-api:0.1.0
-MILEAGE_FRONTEND_IMAGE=ghcr.io/moyuin-aka/mileage-frontend:0.1.0
+MILEAGE_API_IMAGE=ghcr.io/moyuin-aka/mileage-api:0.2.0
+MILEAGE_FRONTEND_IMAGE=ghcr.io/moyuin-aka/mileage-frontend:0.2.0
 ```
 
 ## Upgrading
@@ -129,7 +129,7 @@ Each follow-up expense can individually be included or excluded from the total c
 
 ## Roadmap
 
-`0.1.0` is the first public self-hosted release, focused on asset tracking, cost stats, follow-up expenses, and basic password protection. OCR entry from screenshots is included as an early feature.
+`0.2.0` adds OCR-assisted entry and English/Chinese UI switching on top of the original asset tracking, cost stats, follow-up expenses, and password protection.
 
 `1.0.0` will polish the OCR experience for more reliable extraction from purchase screenshots, order confirmations, and receipts.
 
