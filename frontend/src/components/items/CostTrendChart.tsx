@@ -11,31 +11,35 @@ import {
 } from 'recharts'
 import { CostTrendPoint } from '@/types'
 import { formatCNY } from '@/lib/calculations'
+import { useLanguage } from '@/i18n'
 
 interface CostTrendChartProps {
   data: CostTrendPoint[]
   todayDay?: number
-  /** Optional second series data (new device scenario) */
   compareData?: CostTrendPoint[]
   compareLabel?: string
 }
 
 function CustomTooltip({ active, payload }: TooltipProps<number, string>) {
+  const { t } = useLanguage()
   if (!active || !payload?.length) return null
   const main = payload.find(p => p.dataKey === 'daily_cost')
   const compare = payload.find(p => p.dataKey === 'compare_cost')
+  const day = payload[0]?.payload?.day
 
   return (
     <div className="rounded-xl border border-zinc-700 bg-zinc-900/95 backdrop-blur px-4 py-3 shadow-xl text-sm">
-      <p className="text-zinc-500 text-xs mb-2">第 {payload[0]?.payload?.day} 天</p>
+      <p className="text-zinc-500 text-xs mb-2">
+        {t('chart.dayPrefix')} {day} {t('chart.daySuffix')}
+      </p>
       {main && (
         <p className="text-accent font-mono font-semibold">
-          {formatCNY(main.value as number)} / 天
+          {formatCNY(main.value as number)} {t('chart.perDay')}
         </p>
       )}
       {compare && (
         <p className="text-blue-400 font-mono text-xs mt-1">
-          新设备: {formatCNY(compare.value as number)} / 天
+          {t('chart.newDeviceLabel')}: {formatCNY(compare.value as number)} {t('chart.perDay')}
         </p>
       )}
     </div>
@@ -46,9 +50,10 @@ export function CostTrendChart({
   data,
   todayDay,
   compareData,
-  compareLabel = '新设备',
+  compareLabel,
 }: CostTrendChartProps) {
-  // Merge main and compare data by day index
+  const { t } = useLanguage()
+
   const merged = data.map(pt => {
     const cmp = compareData?.find(c => c.day === pt.day)
     return { ...pt, compare_cost: cmp?.daily_cost }
@@ -72,7 +77,7 @@ export function CostTrendChart({
             tick={{ fill: '#52525b', fontSize: 11 }}
             tickLine={false}
             axisLine={false}
-            tickFormatter={v => `${v}天`}
+            tickFormatter={v => `${v}${t('chart.dayUnit')}`}
             interval="preserveStartEnd"
           />
           <YAxis
@@ -85,18 +90,16 @@ export function CostTrendChart({
           />
           <Tooltip content={<CustomTooltip />} />
 
-          {/* Today reference line */}
           {todayDay && (
             <ReferenceLine
               x={todayDay}
               stroke="#4ade80"
               strokeDasharray="4 3"
               strokeWidth={1}
-              label={{ value: '今天', fill: '#4ade80', fontSize: 11, position: 'insideTopRight' }}
+              label={{ value: t('chart.today'), fill: '#4ade80', fontSize: 11, position: 'insideTopRight' }}
             />
           )}
 
-          {/* Main cost curve */}
           <Line
             type="monotone"
             dataKey="daily_cost"
@@ -106,7 +109,6 @@ export function CostTrendChart({
             activeDot={{ r: 4, fill: '#4ade80', strokeWidth: 0 }}
           />
 
-          {/* Compare curve */}
           {compareData && (
             <Line
               type="monotone"
@@ -126,10 +128,13 @@ export function CostTrendChart({
         <div className="flex items-center gap-4 mt-2 text-xs text-zinc-500 justify-end">
           <span className="flex items-center gap-1.5">
             <span className="inline-block w-4 h-0.5 bg-accent rounded" />
-            当前设备
+            {t('chart.currentDevice')}
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="inline-block w-4 h-0.5 bg-blue-400 rounded opacity-70" style={{ backgroundImage: 'repeating-linear-gradient(to right, #60a5fa 0, #60a5fa 5px, transparent 5px, transparent 8px)' }} />
+            <span
+              className="inline-block w-4 h-0.5 bg-blue-400 rounded opacity-70"
+              style={{ backgroundImage: 'repeating-linear-gradient(to right, #60a5fa 0, #60a5fa 5px, transparent 5px, transparent 8px)' }}
+            />
             {compareLabel}
           </span>
         </div>

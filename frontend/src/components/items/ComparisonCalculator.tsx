@@ -5,12 +5,14 @@ import { generateCostTrend, findBreakEvenDay, formatCNY, formatDailyCost } from 
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { CostTrendChart } from './CostTrendChart'
+import { useLanguage } from '@/i18n'
 
 interface ComparisonCalculatorProps {
   item: ItemWithStats
 }
 
 export function ComparisonCalculator({ item }: ComparisonCalculatorProps) {
+  const { t } = useLanguage()
   const [newPrice, setNewPrice] = useState('')
   const [newResidual, setNewResidual] = useState('')
 
@@ -23,7 +25,6 @@ export function ComparisonCalculator({ item }: ComparisonCalculatorProps) {
     ? findBreakEvenDay(item, newPriceNum, newResidualNum)
     : null
 
-  // New device cost trend (from day 1)
   const newDeviceTrend =
     newPriceNum > 0
       ? currentTrend.map(pt => ({
@@ -40,13 +41,13 @@ export function ComparisonCalculator({ item }: ComparisonCalculatorProps) {
   return (
     <div className="space-y-5">
       <div>
-        <h3 className="font-serif text-zinc-100 text-sm mb-1">换购对比计算器</h3>
-        <p className="text-2xs text-zinc-600">输入新设备价格，查看两条成本曲线的交叉点</p>
+        <h3 className="font-serif text-zinc-100 text-sm mb-1">{t('calc.title')}</h3>
+        <p className="text-2xs text-zinc-600">{t('calc.hint')}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label htmlFor="new-price">新设备价格</Label>
+          <Label htmlFor="new-price">{t('calc.newPrice')}</Label>
           <Input
             id="new-price"
             type="number"
@@ -57,7 +58,7 @@ export function ComparisonCalculator({ item }: ComparisonCalculatorProps) {
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="new-residual">预期残值（可选）</Label>
+          <Label htmlFor="new-residual">{t('calc.newResidual')}</Label>
           <Input
             id="new-residual"
             type="number"
@@ -75,18 +76,18 @@ export function ComparisonCalculator({ item }: ComparisonCalculatorProps) {
           <div className="rounded-xl bg-zinc-900 border border-zinc-800 p-4 space-y-3">
             <div className="flex items-center justify-between text-sm">
               <div>
-                <p className="text-zinc-500 text-xs mb-0.5">继续用当前设备（明年均）</p>
+                <p className="text-zinc-500 text-xs mb-0.5">{t('calc.keepCurrent')}</p>
                 <p className="font-mono font-semibold text-zinc-100">
                   {formatDailyCost(currentFutureCost)}{' '}
-                  <span className="text-zinc-500 text-xs font-normal">元/天</span>
+                  <span className="text-zinc-500 text-xs font-normal">{t('calc.perDay')}</span>
                 </p>
               </div>
               <ArrowRight className="h-4 w-4 text-zinc-700" />
               <div className="text-right">
-                <p className="text-zinc-500 text-xs mb-0.5">换新设备（首年均）</p>
+                <p className="text-zinc-500 text-xs mb-0.5">{t('calc.buyNew')}</p>
                 <p className="font-mono font-semibold text-zinc-100">
                   {formatDailyCost(newAnnualCost! / 365)}{' '}
-                  <span className="text-zinc-500 text-xs font-normal">元/天</span>
+                  <span className="text-zinc-500 text-xs font-normal">{t('calc.perDay')}</span>
                 </p>
               </div>
             </div>
@@ -94,45 +95,42 @@ export function ComparisonCalculator({ item }: ComparisonCalculatorProps) {
             {breakEvenDay !== null ? (
               <div className="pt-3 border-t border-zinc-800 flex items-start gap-2">
                 <TrendingDown className="h-4 w-4 text-accent mt-0.5 shrink-0" />
-                <p className="text-sm">
-                  <span className="text-zinc-300">
-                    新设备使用 <span className="font-mono font-bold text-accent">{breakEvenDay}</span> 天
-                    （约 {(breakEvenDay / 30).toFixed(1)} 个月）后，
-                  </span>
-                  <span className="text-zinc-400"> 日均成本将低于继续使用当前设备。</span>
+                <p className="text-sm text-zinc-300">
+                  {t('calc.breakEvenPrefix')}{' '}
+                  <span className="font-mono font-bold text-accent">{breakEvenDay}</span>{' '}
+                  {t('calc.breakEvenDays')}{' '}
+                  {t('calc.breakEvenMonthsPrefix')}{(breakEvenDay / 30).toFixed(1)}{t('calc.breakEvenMonthsSuffix')}{' '}
+                  <span className="text-zinc-400">{t('calc.breakEvenSuffix')}</span>
                 </p>
               </div>
             ) : (
               <div className="pt-3 border-t border-zinc-800">
-                <p className="text-sm text-zinc-500">
-                  在计算周期内（10年），新设备的日均成本始终高于当前设备——
-                  <span className="text-zinc-400">继续用当前设备更划算。</span>
-                </p>
+                <p className="text-sm text-zinc-500">{t('calc.noBreakEven')}</p>
               </div>
             )}
           </div>
 
           {/* Chart comparison */}
           <div>
-            <p className="text-xs text-zinc-600 mb-3">成本曲线对比</p>
+            <p className="text-xs text-zinc-600 mb-3">{t('calc.chartTitle')}</p>
             <CostTrendChart
               data={currentTrend}
               todayDay={item.days_owned}
               compareData={newDeviceTrend}
-              compareLabel={newPrice ? `新设备 ${formatCNY(newPriceNum, 0)}` : '新设备'}
+              compareLabel={newPrice ? `${t('chart.newDeviceLabel')} ${formatCNY(newPriceNum, 0)}` : t('chart.newDeviceLabel')}
             />
           </div>
 
           {/* Annual cost comparison */}
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-lg bg-accent-bg border border-accent-muted p-3">
-              <p className="text-2xs text-accent/70 mb-1">继续使用年均成本</p>
+              <p className="text-2xs text-accent/70 mb-1">{t('calc.keepAnnual')}</p>
               <p className="font-mono font-bold text-accent text-lg">
                 {formatCNY(currentFutureCost * 365, 0)}
               </p>
             </div>
             <div className="rounded-lg bg-zinc-900 border border-zinc-800 p-3">
-              <p className="text-2xs text-zinc-500 mb-1">换新设备年均成本</p>
+              <p className="text-2xs text-zinc-500 mb-1">{t('calc.buyAnnual')}</p>
               <p className="font-mono font-bold text-zinc-100 text-lg">
                 {formatCNY(newAnnualCost!, 0)}
               </p>

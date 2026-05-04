@@ -7,6 +7,7 @@ import type { Context } from 'hono'
 import type { ExpenseInput, ItemInput } from './types.js'
 import { mapExpense, mapItem, pool } from './db.js'
 import { runMigrations } from './migrations.js'
+import { isUploadedImage, parseOrderImage } from './ocr.js'
 import { computeItemStats, generateCostTrend, todayDateOnly } from './stats.js'
 import {
   normalizeExpenseInput,
@@ -245,10 +246,20 @@ app.get('/api/stats/cost-trend/:id', async c => {
   return c.json(generateCostTrend(item, futureDays, maxPoints))
 })
 
-app.post('/api/ocr/parse', c => {
-  return c.json({
-    message: 'OCR parsing is reserved for a later phase.',
-  })
+app.post('/api/ocr/parse', async c => {
+  const body = await c.req.parseBody()
+  const image = body.image
+  if (!isUploadedImage(image)) {
+    throw new ValidationError(['Field "image" is required'])
+  }
+
+  try {
+    return c.json(await parseOrderImage(image))
+  } catch (error) {
+    if (error instanceof ValidationError) throw error
+    console.error(error)
+    return c.json({ error: 'OCR failed', detail: errorMessage(error) }, 503)
+  }
 })
 
 app.onError((error, c) => {
@@ -320,6 +331,10 @@ function safeEqual(a: string, b: string) {
   const bBuffer = Buffer.from(b)
   if (aBuffer.length !== bBuffer.length) return false
   return timingSafeEqual(aBuffer, bBuffer)
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : 'Unknown OCR error'
 }
 
 async function findItem(id: string) {

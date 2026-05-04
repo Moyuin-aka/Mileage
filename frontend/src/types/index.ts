@@ -91,6 +91,31 @@ export type ExpenseFormData = Pick<
 
 export type SortKey = 'daily_cost' | 'purchase_date' | 'purchase_price'
 
+export interface OcrLine {
+  text: string
+  score?: number | null
+  box?: number[][] | null
+}
+
+export interface OcrCandidate<T> {
+  value: T
+  confidence: number
+  source: string
+  label?: string
+}
+
+export interface OcrParseResult {
+  fields: Partial<Pick<ItemFormData, 'name' | 'category' | 'purchase_price' | 'purchase_date' | 'purchase_channel'>>
+  candidates: {
+    name: OcrCandidate<string>[]
+    purchase_price: OcrCandidate<number>[]
+    purchase_date: OcrCandidate<string>[]
+    purchase_channel: OcrCandidate<string>[]
+  }
+  raw_text: string
+  lines: OcrLine[]
+}
+
 export const CATEGORY_LABELS: Record<ItemCategory, string> = {
   electronics: '电子产品',
   appliances: '家电',
