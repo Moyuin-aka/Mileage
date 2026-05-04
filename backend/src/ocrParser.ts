@@ -1,5 +1,7 @@
 import type { ItemCategory } from './types.js'
 
+export type MoneyCurrency = 'CNY' | 'USD' | 'HKD' | 'JPY' | 'EUR' | 'GBP' | 'TWD' | 'MOP'
+
 export interface OcrLine {
   text: string
   score?: number | null
@@ -16,6 +18,7 @@ export interface OcrCandidate<T> {
   confidence: number
   source: string
   label?: string
+  currency?: MoneyCurrency
 }
 
 export interface OcrParseResult {
@@ -23,6 +26,7 @@ export interface OcrParseResult {
     name?: string
     category?: ItemCategory
     purchase_price?: number
+    purchase_currency?: MoneyCurrency
     purchase_date?: string
     purchase_channel?: string
   }
@@ -43,9 +47,21 @@ interface ScoredLine extends OcrLine {
 }
 
 const PRICE_RULES = [
-  { label: '实付款', pattern: '实付款|实付金额|实际付款|实付', confidence: 0.98 },
-  { label: '支付金额', pattern: '支付金额|付款金额|已付款|应付金额|应付款|实际支付', confidence: 0.94 },
-  { label: '合计', pattern: '合计|订单总额|订单金额|共计|总计|共减后', confidence: 0.86 },
+  {
+    label: '实付款',
+    pattern: '实付款|实付金额|实际付款|实付|TotalPaid|AmountPaid|PaidAmount',
+    confidence: 0.98,
+  },
+  {
+    label: '支付金额',
+    pattern: '支付金额|付款金额|已付款|应付金额|应付款|实际支付|PaymentAmount|Paid',
+    confidence: 0.94,
+  },
+  {
+    label: '合计',
+    pattern: '合计|订单总额|订单金额|共计|总计|共减后|GrandTotal|OrderTotal|Total',
+    confidence: 0.86,
+  },
 ]
 
 const DATE_RULES = [
@@ -67,9 +83,10 @@ const CHANNEL_RULES: Array<[string, RegExp]> = [
 const DATE_PATTERN =
   /((?:20\d{2}|19\d{2})[年/\-.]\s*\d{1,2}[月/\-.]\s*\d{1,2}(?:日)?(?:\s+\d{1,2}:\d{1,2}(?::\d{1,2})?)?)/u
 
-const MONEY_PATTERN = /(?:[¥￥]\s*)?([0-9][0-9,]*(?:\.\d{1,2})?)/u
+const MONEY_PATTERN =
+  /(?:(US\s*\$|U\.S\.\s*\$|HK\s*\$|CN\s*¥|NT\s*\$|RMB|CNY|USD|HKD|JPY|EUR|GBP|TWD|MOP|[$€£¥￥])\s*)?([0-9][0-9,]*(?:\.\d{1,2})?)(?:\s*(人民币|美元|美金|港币|港元|日元|円|欧元|英镑|台币|新台币|澳门币|CNY|RMB|USD|HKD|JPY|EUR|GBP|TWD|MOP|元))?/giu
 const PRODUCT_BLOCKLIST =
-  /订单|交易|支付|付款|实付|合计|总计|金额|时间|物流|快递|店铺|商家|客服|收货|地址|电话|发票|优惠|红包|折扣|减|退款|单号|编号|复制|完成|成功|待评价|售后|运费|数量|规格|颜色|尺码|配送|保障|服务|¥|￥/u
+  /订单|交易|支付|付款|实付|合计|总计|金额|时间|物流|快递|店铺|商家|客服|收货|地址|电话|发票|优惠|红包|折扣|减|退款|单号|编号|复制|完成|成功|待评价|售后|运费|数量|规格|颜色|尺码|配送|保障|服务|Order|Payment|Paid|Total|Amount|Time|Invoice|Receipt|Shipping|Discount|Refund|¥|￥|\$|USD|HKD|CNY|RMB/iu
 
 export function parseOcrLines(lines: OcrLine[], image?: OcrImageInfo | null): OcrParseResult {
   const scoredLines = normalizeLines(lines)
@@ -90,6 +107,7 @@ export function parseOcrLines(lines: OcrLine[], image?: OcrImageInfo | null): Oc
       name: nameCandidates[0]?.value,
       category: nameCandidates[0] ? guessCategory(nameCandidates[0].value) : undefined,
       purchase_price: priceCandidates[0]?.value,
+      purchase_currency: priceCandidates[0]?.currency,
       purchase_date: dateCandidates[0]?.value,
       purchase_channel: channelCandidates[0]?.value,
     },
@@ -139,31 +157,43 @@ function extractPriceCandidates(lines: ScoredLine[]): Array<OcrCandidate<number>
 
       const afterKeyword = compactWindow.slice((keywordMatch.index ?? 0) + keywordMatch[0].length)
       const amount = extractMoney(afterKeyword)
-      if (amount == null) continue
+      if (!amount) continue
       if (isDiscountContext(compactWindow)) continue
 
       candidates.push({
-        value: amount,
-        confidence: rule.confidence,
+        value: amount.value,
+        confidence: priceConfidence(rule.confidence, amount),
         source: windowText,
-        label: rule.label,
+        label: priceLabel(rule.label, amount.currency),
+        currency: amount.currency,
       })
     }
   }
 
-  // Last-resort fallback: choose the largest plausible money value on the image.
+  // Last-resort fallback: prefer explicit currency markers, then choose the largest plausible value.
   const fallbackAmounts = lines
     .filter(line => !isDiscountContext(line.normalized))
-    .flatMap(line => extractAllMoney(line.normalized).map(value => ({ value, source: line.text })))
+    .flatMap(line =>
+      extractAllMoney(line.normalized).map(amount => ({
+        ...amount,
+        source: line.text,
+      })),
+    )
     .filter(item => item.value >= 1)
-    .sort((a, b) => b.value - a.value)
+    .sort((a, b) => {
+      if (a.hasCurrencyMarker !== b.hasCurrencyMarker) {
+        return Number(b.hasCurrencyMarker) - Number(a.hasCurrencyMarker)
+      }
+      return b.value - a.value
+    })
 
   if (fallbackAmounts[0]) {
     candidates.push({
       value: fallbackAmounts[0].value,
-      confidence: 0.45,
+      confidence: fallbackAmounts[0].hasCurrencyMarker ? 0.62 : 0.45,
       source: fallbackAmounts[0].source,
-      label: '金额候选',
+      label: priceLabel('金额候选', fallbackAmounts[0].currency),
+      currency: fallbackAmounts[0].currency,
     })
   }
 
@@ -274,22 +304,68 @@ function normalizeText(text: string) {
     .trim()
 }
 
-function extractMoney(text: string) {
-  const match = text.match(MONEY_PATTERN)
-  if (!match) return null
-  return toMoney(match[1])
+interface ExtractedMoney {
+  value: number
+  currency?: MoneyCurrency
+  raw: string
+  hasCurrencyMarker: boolean
 }
 
-function extractAllMoney(text: string) {
-  return Array.from(text.matchAll(/[¥￥]?\s*([0-9][0-9,]*(?:\.\d{1,2})?)/gu))
-    .map(match => toMoney(match[1]))
-    .filter((value): value is number => value != null)
+function extractMoney(text: string) {
+  return extractAllMoney(text)[0] ?? null
+}
+
+function extractAllMoney(text: string): ExtractedMoney[] {
+  return Array.from(text.matchAll(MONEY_PATTERN))
+    .map(match => {
+      const value = toMoney(match[2])
+      if (value == null) return null
+      const prefix = match[1]?.trim()
+      const suffix = match[3]?.trim()
+      const currency = detectCurrency(prefix, suffix, text)
+      const money: ExtractedMoney = {
+        value,
+        raw: match[0],
+        hasCurrencyMarker: Boolean(prefix || suffix),
+      }
+      if (currency) money.currency = currency
+      return money
+    })
+    .filter((value): value is ExtractedMoney => value != null)
 }
 
 function toMoney(value: string) {
   const amount = Number.parseFloat(value.replace(/,/g, ''))
   if (!Number.isFinite(amount) || amount <= 0 || amount > 10_000_000) return null
   return Math.round(amount * 100) / 100
+}
+
+function detectCurrency(
+  prefix: string | undefined,
+  suffix: string | undefined,
+  context: string,
+): MoneyCurrency | undefined {
+  const marker = `${prefix ?? ''} ${suffix ?? ''} ${context}`.toUpperCase()
+
+  if (/HK\s*\$|HKD|港币|港元/u.test(marker)) return 'HKD'
+  if (/US\s*\$|U\.S\.\s*\$|USD|美元|美金/u.test(marker)) return 'USD'
+  if (/RMB|CNY|CN\s*¥|人民币/u.test(marker)) return 'CNY'
+  if (/JPY|日元|円/u.test(marker)) return 'JPY'
+  if (/EUR|€|欧元/u.test(marker)) return 'EUR'
+  if (/GBP|£|英镑/u.test(marker)) return 'GBP'
+  if (/NT\s*\$|TWD|台币|新台币/u.test(marker)) return 'TWD'
+  if (/MOP|澳门币/u.test(marker)) return 'MOP'
+  if (prefix && /\$/u.test(prefix)) return 'USD'
+  if ((prefix && /[¥￥]/u.test(prefix)) || suffix === '元') return 'CNY'
+  return undefined
+}
+
+function priceConfidence(base: number, amount: ExtractedMoney) {
+  return Math.min(0.99, base + (amount.hasCurrencyMarker ? 0.02 : 0))
+}
+
+function priceLabel(label: string, currency?: MoneyCurrency) {
+  return currency ? `${label} ${currency}` : label
 }
 
 function extractDate(text: string) {
@@ -393,7 +469,7 @@ function uniqueCandidates<T>(
 }
 
 function numberKey(candidate: OcrCandidate<number>) {
-  return candidate.value.toFixed(2)
+  return `${candidate.value.toFixed(2)}:${candidate.currency ?? ''}`
 }
 
 function sortCandidates<T>(a: OcrCandidate<T>, b: OcrCandidate<T>) {

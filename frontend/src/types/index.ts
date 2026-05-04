@@ -18,6 +18,8 @@ export type ExpenseType =
   | 'warranty'     // 保修
   | 'other'        // 其他
 
+export type MoneyCurrency = 'CNY' | 'USD' | 'HKD' | 'JPY' | 'EUR' | 'GBP' | 'TWD' | 'MOP'
+
 export interface ItemExpense {
   id: string
   item_id: string
@@ -102,10 +104,13 @@ export interface OcrCandidate<T> {
   confidence: number
   source: string
   label?: string
+  currency?: MoneyCurrency
 }
 
 export interface OcrParseResult {
-  fields: Partial<Pick<ItemFormData, 'name' | 'category' | 'purchase_price' | 'purchase_date' | 'purchase_channel'>>
+  fields: Partial<Pick<ItemFormData, 'name' | 'category' | 'purchase_price' | 'purchase_date' | 'purchase_channel'>> & {
+    purchase_currency?: MoneyCurrency
+  }
   candidates: {
     name: OcrCandidate<string>[]
     purchase_price: OcrCandidate<number>[]

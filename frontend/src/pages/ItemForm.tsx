@@ -5,6 +5,7 @@ import {
   ItemCategory,
   ItemStatus,
   ItemFormData,
+  MoneyCurrency,
   OcrCandidate,
   OcrParseResult,
 } from '@/types'
@@ -48,10 +49,29 @@ const DEFAULTS: ItemFormData = {
   image_url: '',
 }
 
-const EMPTY_OCR_DRAFT = {
+const CURRENCY_PREFIX: Record<MoneyCurrency, string> = {
+  CNY: '¥',
+  USD: '$',
+  HKD: 'HK$',
+  JPY: '¥',
+  EUR: '€',
+  GBP: '£',
+  TWD: 'NT$',
+  MOP: 'MOP$',
+}
+
+const EMPTY_OCR_DRAFT: {
+  name: string
+  category: ItemCategory
+  purchase_price: string
+  purchase_currency: MoneyCurrency | ''
+  purchase_date: string
+  purchase_channel: string
+} = {
   name: '',
   category: 'electronics' as ItemCategory,
   purchase_price: '',
+  purchase_currency: '',
   purchase_date: '',
   purchase_channel: '',
 }
@@ -119,6 +139,8 @@ export function ItemForm() {
             : form.purchase_price
             ? String(form.purchase_price)
             : '',
+        purchase_currency:
+          result.fields.purchase_currency ?? result.candidates.purchase_price[0]?.currency ?? '',
         purchase_date: result.fields.purchase_date ?? form.purchase_date,
         purchase_channel: result.fields.purchase_channel ?? form.purchase_channel ?? '',
       })
@@ -405,7 +427,7 @@ export function ItemForm() {
                   />
                   <CandidateRow
                     candidates={ocrResult?.candidates.name}
-                    onPick={value => setOcr('name', value)}
+                    onPick={candidate => setOcr('name', candidate.value)}
                   />
                 </Field>
 
@@ -432,14 +454,17 @@ export function ItemForm() {
                     type="number"
                     min={0}
                     step={0.01}
-                    prefix="¥"
+                    prefix={moneyPrefix(ocrDraft.purchase_currency)}
                     value={ocrDraft.purchase_price}
                     onChange={event => setOcr('purchase_price', event.target.value)}
                   />
                   <CandidateRow
                     candidates={ocrResult?.candidates.purchase_price}
-                    format={value => `¥${value}`}
-                    onPick={value => setOcr('purchase_price', String(value))}
+                    format={formatMoneyCandidate}
+                    onPick={candidate => {
+                      setOcr('purchase_price', String(candidate.value))
+                      setOcr('purchase_currency', candidate.currency ?? '')
+                    }}
                   />
                 </Field>
 
@@ -452,7 +477,7 @@ export function ItemForm() {
                   />
                   <CandidateRow
                     candidates={ocrResult?.candidates.purchase_date}
-                    onPick={value => setOcr('purchase_date', value)}
+                    onPick={candidate => setOcr('purchase_date', candidate.value)}
                   />
                 </Field>
 
@@ -463,7 +488,7 @@ export function ItemForm() {
                   />
                   <CandidateRow
                     candidates={ocrResult?.candidates.purchase_channel}
-                    onPick={value => setOcr('purchase_channel', value)}
+                    onPick={candidate => setOcr('purchase_channel', candidate.value)}
                   />
                 </Field>
               </div>
@@ -561,8 +586,8 @@ function CandidateRow<T extends string | number>({
   onPick,
 }: {
   candidates?: OcrCandidate<T>[]
-  format?: (value: T) => string
-  onPick: (value: T) => void
+  format?: (candidate: OcrCandidate<T>) => string
+  onPick: (candidate: OcrCandidate<T>) => void
 }) {
   if (!candidates?.length) return null
 
@@ -571,14 +596,23 @@ function CandidateRow<T extends string | number>({
       {candidates.slice(0, 3).map(candidate => (
         <button
           type="button"
-          key={`${candidate.label ?? 'cand'}-${candidate.value}`}
+          key={`${candidate.label ?? 'cand'}-${candidate.currency ?? ''}-${candidate.value}`}
           className="max-w-full truncate rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1 text-2xs text-zinc-400 transition-colors hover:border-accent-muted hover:text-zinc-100"
           title={candidate.source}
-          onClick={() => onPick(candidate.value)}
+          onClick={() => onPick(candidate)}
         >
-          {format ? format(candidate.value) : candidate.value}
+          {format ? format(candidate) : candidate.value}
         </button>
       ))}
     </div>
   )
+}
+
+function moneyPrefix(currency: MoneyCurrency | '') {
+  return currency ? CURRENCY_PREFIX[currency] : '¥'
+}
+
+function formatMoneyCandidate(candidate: OcrCandidate<number>) {
+  const prefix = candidate.currency ? CURRENCY_PREFIX[candidate.currency] : '¥'
+  return candidate.currency ? `${prefix}${candidate.value} ${candidate.currency}` : `${prefix}${candidate.value}`
 }
