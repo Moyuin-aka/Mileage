@@ -4,15 +4,32 @@ import {
   ArrowLeft, Edit3, Trash2, Archive, DollarSign,
   AlertTriangle, Calendar, ShoppingBag, FileText,
   PlusCircle, Wrench, Battery, ShieldCheck, Package,
+  Settings2,
 } from 'lucide-react'
 import {
   ExpenseType,
   ItemCategory,
   ItemExpense,
   ItemStatus,
+  ItemWithStats,
 } from '@/types'
 import { useItem, useItemMutations } from '@/hooks/useItems'
 import { generateCostTrend, formatCNY, formatDailyCost } from '@/lib/calculations'
+import {
+  COST_BENCHMARK_PROFILES,
+  MAIN_DEVICE_PROFILES,
+  PERIPHERAL_PROFILES,
+  DEFAULT_COST_BENCHMARK_KEYWORDS,
+  buildUpgradeSignals,
+  isPeripheralProfile,
+  loadCostBenchmarkKeywords,
+  normalizeCostBenchmarkKeywords,
+  saveCostBenchmarkKeywords,
+  type CostBenchmarkKeywords,
+  type CostBenchmarkProfile,
+  type PhysicalFaultSignal,
+  type UpgradeSignals,
+} from '@/lib/costBenchmarks'
 import { formatDate } from '@/lib/utils'
 import { CostTrendChart } from '@/components/items/CostTrendChart'
 import { ComparisonCalculator } from '@/components/items/ComparisonCalculator'
@@ -22,7 +39,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogBody, DialogFooter, DialogClose,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
+import { Input, Textarea } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -33,6 +50,8 @@ import { useLanguage } from '@/i18n'
 const EXPENSE_TYPES: ExpenseType[] = [
   'repair', 'battery', 'maintenance', 'accessory', 'warranty', 'other',
 ]
+
+type KeywordDraft = Record<CostBenchmarkProfile, string>
 
 export function ItemDetail() {
   const { id } = useParams<{ id: string }>()
@@ -52,6 +71,11 @@ export function ItemDetail() {
   const [expenseDate, setExpenseDate] = useState(new Date().toISOString().slice(0, 10))
   const [expenseDescription, setExpenseDescription] = useState('')
   const [countsInCost, setCountsInCost] = useState(true)
+  const [keywordSettingsOpen, setKeywordSettingsOpen] = useState(false)
+  const [benchmarkKeywords, setBenchmarkKeywords] = useState<CostBenchmarkKeywords>(() => loadCostBenchmarkKeywords())
+  const [keywordDraft, setKeywordDraft] = useState<KeywordDraft>(() =>
+    keywordsToDraft(loadCostBenchmarkKeywords()),
+  )
 
   if (loading) return <LoadingSkeleton />
   if (error || !item) {
@@ -67,6 +91,31 @@ export function ItemDetail() {
   const trendData = generateCostTrend(item, 365)
   const expenses = item.expenses ?? []
   const expenseTotal = item.expense_total ?? 0
+  const upgradeSignals = buildUpgradeSignals(item, benchmarkKeywords)
+  const canConfigureBenchmark = item.status === 'active' && item.category === 'electronics'
+  const isPeripheralOverService = upgradeSignals?.isOverService === true
+
+  function openKeywordSettings() {
+    setKeywordDraft(keywordsToDraft(benchmarkKeywords))
+    setKeywordSettingsOpen(true)
+  }
+
+  function handleSaveKeywordSettings() {
+    const next = normalizeCostBenchmarkKeywords(
+      COST_BENCHMARK_PROFILES.reduce((result, profile) => {
+        result[profile] = parseKeywordDraft(keywordDraft[profile])
+        return result
+      }, {} as CostBenchmarkKeywords),
+    )
+
+    saveCostBenchmarkKeywords(next)
+    setBenchmarkKeywords(next)
+    setKeywordSettingsOpen(false)
+  }
+
+  function handleResetKeywordSettings() {
+    setKeywordDraft(keywordsToDraft(DEFAULT_COST_BENCHMARK_KEYWORDS))
+  }
 
   async function handleRetire() {
     await mutations.retireItem(item!.id, retireDate)
@@ -182,13 +231,27 @@ export function ItemDetail() {
 
       {/* Hero cost stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="col-span-2 lg:col-span-1 rounded-xl border border-accent-muted bg-accent-bg p-4">
-          <p className="text-2xs text-accent/60 uppercase tracking-widest mb-2">{t('detail.totalDaily')}</p>
+        <div className={cn(
+          'col-span-2 lg:col-span-1 rounded-xl border p-4',
+          isPeripheralOverService
+            ? 'border-amber-500/30 bg-gradient-to-br from-amber-950/30 to-yellow-950/15'
+            : 'border-accent-muted bg-accent-bg',
+        )}>
+          <p className={cn(
+            'text-2xs uppercase tracking-widest mb-2',
+            isPeripheralOverService ? 'text-amber-400/60' : 'text-accent/60',
+          )}>{t('detail.totalDaily')}</p>
           <div className="flex items-baseline gap-1">
-            <span className="font-mono text-4xl font-bold text-accent leading-none">
+            <span className={cn(
+              'font-mono text-4xl font-bold leading-none',
+              isPeripheralOverService ? 'text-amber-400' : 'text-accent',
+            )}>
               {formatDailyCost(item.daily_cost)}
             </span>
-            <span className="text-accent/60 text-sm">{t('detail.perDay')}</span>
+            <span className={cn(
+              'text-sm',
+              isPeripheralOverService ? 'text-amber-400/60' : 'text-accent/60',
+            )}>{t('detail.perDay')}</span>
           </div>
         </div>
         <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
@@ -213,6 +276,30 @@ export function ItemDetail() {
         </div>
       </div>
 
+      {canConfigureBenchmark && (
+        upgradeSignals ? (
+          isPeripheralProfile(upgradeSignals.benchmark.profile) ? (
+            <PeripheralPanel
+              signals={upgradeSignals}
+              item={item}
+              profileLabel={profileLabel(upgradeSignals.benchmark.profile, t)}
+              onEditKeywords={openKeywordSettings}
+              t={t}
+            />
+          ) : (
+            <BenchmarkPanel
+              signals={upgradeSignals}
+              residualValue={item.residual_value ?? 0}
+              profileLabel={profileLabel(upgradeSignals.benchmark.profile, t)}
+              onEditKeywords={openKeywordSettings}
+              t={t}
+            />
+          )
+        ) : (
+          <BenchmarkUnmatchedPanel onEditKeywords={openKeywordSettings} t={t} />
+        )
+      )}
+
       {/* Cost trend chart */}
       <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
         <div className="flex items-center justify-between mb-4">
@@ -221,7 +308,19 @@ export function ItemDetail() {
             <p className="text-2xs text-zinc-600 mt-0.5">{t('detail.costCurveHint')}</p>
           </div>
         </div>
-        <CostTrendChart data={trendData} todayDay={item.days_owned} />
+        <CostTrendChart
+          data={trendData}
+          todayDay={item.days_owned}
+          referenceBand={
+            upgradeSignals
+              ? {
+                  min: upgradeSignals.benchmark.minDaily,
+                  max: upgradeSignals.benchmark.maxDaily,
+                  label: profileLabel(upgradeSignals.benchmark.profile, t),
+                }
+              : undefined
+          }
+        />
         <div className="mt-4 rounded-lg bg-zinc-950 border border-zinc-800 p-3">
           <p className="text-xs text-zinc-500">
             {t('detail.costForecastPrefix')}{' '}
@@ -513,6 +612,17 @@ export function ItemDetail() {
         </DialogContent>
       </Dialog>
 
+      {/* Benchmark keyword settings */}
+      <BenchmarkKeywordDialog
+        open={keywordSettingsOpen}
+        draft={keywordDraft}
+        onOpenChange={setKeywordSettingsOpen}
+        onChange={(profile, value) => setKeywordDraft(current => ({ ...current, [profile]: value }))}
+        onReset={handleResetKeywordSettings}
+        onSave={handleSaveKeywordSettings}
+        t={t}
+      />
+
       {/* Delete dialog */}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent>
@@ -541,6 +651,474 @@ export function ItemDetail() {
       </Dialog>
     </div>
   )
+}
+
+type Translate = ReturnType<typeof useLanguage>['t']
+
+function BenchmarkPanel({
+  signals,
+  residualValue,
+  profileLabel,
+  onEditKeywords,
+  t,
+}: {
+  signals: UpgradeSignals
+  residualValue: number
+  profileLabel: string
+  onEditKeywords: () => void
+  t: Translate
+}) {
+  const { benchmark, latestRepair } = signals
+  const isFlat = signals.drop30 < 0.2
+
+  return (
+    <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 space-y-4">
+      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:gap-4">
+        <div>
+          <h2 className="font-serif text-sm text-zinc-100">
+            {t('benchmark.title')} / {t('signals.title')}
+          </h2>
+          <p className="mt-0.5 text-2xs text-zinc-600">{t('benchmark.subtitle')}</p>
+        </div>
+        <div className="flex max-w-full flex-wrap items-center gap-2">
+          <span className="max-w-full rounded-full border border-zinc-700 px-2 py-1 text-2xs text-zinc-400">
+            {t('benchmark.range', {
+              profile: profileLabel,
+              min: formatDailyCost(benchmark.minDaily),
+              max: formatDailyCost(benchmark.maxDaily),
+            })}
+          </span>
+          <Button variant="ghost" size="sm" onClick={onEditKeywords}>
+            <Settings2 className="h-3.5 w-3.5" />
+            {t('benchmark.configure')}
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <SignalTile
+          title={benchmarkPositionText(signals.position, t)}
+          value={
+            signals.daysToMax && signals.daysToMax > 0
+              ? t('benchmark.toMax', {
+                  days: signals.daysToMax,
+                  target: formatDailyCost(benchmark.maxDaily),
+                })
+              : t('benchmark.already')
+          }
+          tone={signals.position === 'above' ? 'warn' : 'good'}
+        />
+        <SignalTile
+          title={t('signals.margin')}
+          value={t('signals.marginText', { amount: formatDailyCost(signals.drop30) })}
+          detail={isFlat ? t('signals.marginFlat') : t('signals.marginUseful')}
+          tone={isFlat ? 'muted' : 'good'}
+        />
+        <SignalTile
+          title={t('signals.repair')}
+          value={
+            latestRepair
+              ? latestRepair.overResidual
+                ? t('signals.repairOver', {
+                    amount: formatCNY(latestRepair.amount, 0),
+                    residual: formatCNY(residualValue, 0),
+                  })
+                : t('signals.repairOk', {
+                    amount: formatCNY(latestRepair.amount, 0),
+                    residual: formatCNY(residualValue, 0),
+                  })
+              : t('signals.repairNone')
+          }
+          tone={latestRepair?.overResidual ? 'warn' : 'muted'}
+        />
+        <SignalTile
+          title={t('signals.hiddenCost')}
+          value={t('signals.hiddenCostText')}
+          detail={t('signals.resaleText')}
+          tone="muted"
+        />
+      </div>
+    </div>
+  )
+}
+
+function BenchmarkUnmatchedPanel({
+  onEditKeywords,
+  t,
+}: {
+  onEditKeywords: () => void
+  t: Translate
+}) {
+  return (
+    <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
+        <div>
+          <h2 className="font-serif text-sm text-zinc-100">{t('benchmark.unmatchedTitle')}</h2>
+          <p className="mt-0.5 text-2xs text-zinc-600">{t('benchmark.unmatchedText')}</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={onEditKeywords}>
+          <Settings2 className="h-3.5 w-3.5" />
+          {t('benchmark.configure')}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function PeripheralPanel({
+  signals,
+  item,
+  profileLabel: label,
+  onEditKeywords,
+  t,
+}: {
+  signals: UpgradeSignals
+  item: ItemWithStats
+  profileLabel: string
+  onEditKeywords: () => void
+  t: Translate
+}) {
+  const { benchmark, isOverService, overServiceDays, physicalFaults = [] } = signals
+  const expectedDays = item.expected_years ? item.expected_years * 365 : null
+  const progress = expectedDays ? Math.min(1, item.days_owned / expectedDays) : null
+  const peripheralProfile = benchmark.profile as 'gamepad' | 'mouse' | 'keyboard'
+
+  return (
+    <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 space-y-4">
+      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:gap-4">
+        <div>
+          <h2 className="font-serif text-sm text-zinc-100">
+            {t('peripheral.title')}
+          </h2>
+          <p className="mt-0.5 text-2xs text-zinc-600">{t('peripheral.subtitle')}</p>
+        </div>
+        <div className="flex max-w-full flex-wrap items-center gap-2">
+          <span className="max-w-full rounded-full border border-zinc-700 px-2 py-1 text-2xs text-zinc-400">
+            {t('benchmark.range', {
+              profile: label,
+              min: formatDailyCost(benchmark.minDaily),
+              max: formatDailyCost(benchmark.maxDaily),
+            })}
+          </span>
+          <Button variant="ghost" size="sm" onClick={onEditKeywords}>
+            <Settings2 className="h-3.5 w-3.5" />
+            {t('benchmark.configure')}
+          </Button>
+        </div>
+      </div>
+
+      {/* Lifespan hourglass */}
+      <div className={cn(
+        'rounded-lg border p-4',
+        isOverService
+          ? 'border-amber-500/40 bg-gradient-to-r from-amber-950/30 to-amber-900/10'
+          : expectedDays
+          ? 'border-zinc-800 bg-zinc-950/40'
+          : 'border-zinc-800 border-dashed bg-zinc-950/20',
+      )}>
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <p className={cn(
+            'text-2xs font-medium uppercase tracking-widest',
+            isOverService ? 'text-amber-400' : 'text-zinc-600',
+          )}>
+            {t('peripheral.lifespanProgress')}
+          </p>
+          {isOverService && overServiceDays != null && (
+            <span className="rounded-full bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-2xs font-semibold text-amber-400 animate-pulse">
+              {t('peripheral.bonusDays', { days: overServiceDays })}
+            </span>
+          )}
+        </div>
+
+        {expectedDays != null && progress != null ? (
+          <>
+            {/* Progress bar */}
+            <div className="h-2 w-full bg-zinc-800 rounded-full overflow-hidden mb-2">
+              <div
+                className={cn(
+                  'h-full rounded-full transition-all duration-700',
+                  isOverService
+                    ? 'bg-gradient-to-r from-amber-500 to-yellow-400'
+                    : 'bg-accent/60',
+                )}
+                style={{ width: `${Math.min(100, progress * 100).toFixed(1)}%` }}
+              />
+            </div>
+            <p className={cn(
+              'text-sm',
+              isOverService ? 'text-amber-300 font-medium' : 'text-zinc-400',
+            )}>
+              {isOverService
+                ? t('peripheral.overServiceDetail', { days: overServiceDays ?? 0 })
+                : t('peripheral.normalServiceDetail', {
+                    days: Math.max(0, Math.round(expectedDays - item.days_owned)),
+                  })}
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-zinc-500">{t('peripheral.noExpectedLife')}</p>
+            <p className="text-2xs text-zinc-700 mt-1">{t('peripheral.noExpectedLifeHint')}</p>
+          </>
+        )}
+      </div>
+
+      {/* Over-service / normal service signal tiles */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <SignalTile
+          title={benchmarkPositionText(signals.position, t)}
+          value={
+            signals.daysToMax && signals.daysToMax > 0
+              ? t('benchmark.toMax', {
+                  days: signals.daysToMax,
+                  target: formatDailyCost(benchmark.maxDaily),
+                })
+              : t('benchmark.already')
+          }
+          tone={signals.position === 'above' ? 'warn' : isOverService ? 'gold' : 'good'}
+        />
+        <SignalTile
+          title={
+            isOverService
+              ? t('peripheral.overService')
+              : expectedDays
+              ? t('peripheral.normalService')
+              : t('peripheral.noExpectedLife')
+          }
+          value={
+            isOverService && overServiceDays != null
+              ? t('peripheral.overServiceDetail', { days: overServiceDays })
+              : expectedDays
+              ? t('peripheral.normalServiceDetail', {
+                  days: Math.max(0, Math.round(expectedDays - item.days_owned)),
+                })
+              : t('peripheral.noExpectedLifeHint')
+          }
+          tone={isOverService ? 'gold' : 'muted'}
+        />
+      </div>
+
+      {/* Physical fault red lines */}
+      <div className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-4 space-y-3">
+        <div>
+          <p className="text-2xs font-medium uppercase tracking-widest text-red-400/80">
+            {t('peripheral.faultTitle')}
+          </p>
+          <p className="text-2xs text-zinc-600 mt-0.5">
+            {t('peripheral.faultSubtitle')}
+          </p>
+        </div>
+
+        {/* Default replacement hint */}
+        <div className="rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-2">
+          <p className="text-xs text-zinc-500 leading-relaxed">
+            {t(`peripheral.replaceHint.${peripheralProfile}` as const)}
+          </p>
+        </div>
+
+        {physicalFaults.length > 0 ? (
+          <div className="space-y-2">
+            <p className="text-xs text-red-400 font-medium">
+              ⚠ {t('peripheral.faultDetected')}
+            </p>
+            {physicalFaults.map((fault, idx) => (
+              <FaultSignalRow key={`${fault.keyword}-${idx}`} fault={fault} t={t} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-zinc-600">
+            ✓ {t('peripheral.faultNone')}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function FaultSignalRow({
+  fault,
+  t,
+}: {
+  fault: PhysicalFaultSignal
+  t: Translate
+}) {
+  return (
+    <div className="flex items-start gap-2 rounded-md border border-red-900/40 bg-red-950/15 px-3 py-2">
+      <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-red-400 shrink-0" />
+      <div className="min-w-0">
+        <span className="text-xs text-red-300 font-medium">{fault.keyword}</span>
+        <span className="text-2xs text-zinc-600 ml-2">
+          {fault.source === 'expense'
+            ? t('peripheral.faultSource.expense')
+            : t('peripheral.faultSource.notes')}
+        </span>
+        {fault.detail && (
+          <p className="text-2xs text-zinc-500 mt-0.5 truncate">{fault.detail}</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function BenchmarkKeywordDialog({
+  open,
+  draft,
+  onOpenChange,
+  onChange,
+  onReset,
+  onSave,
+  t,
+}: {
+  open: boolean
+  draft: KeywordDraft
+  onOpenChange: (open: boolean) => void
+  onChange: (profile: CostBenchmarkProfile, value: string) => void
+  onReset: () => void
+  onSave: () => void
+  t: Translate
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{t('benchmark.keywordTitle')}</DialogTitle>
+        </DialogHeader>
+        <DialogBody className="space-y-4">
+          <p className="text-sm text-zinc-500">{t('benchmark.keywordHint')}</p>
+
+          {/* Main device profiles */}
+          <div className="space-y-3">
+            <p className="text-xs font-medium text-zinc-400 uppercase tracking-widest">
+              {t('benchmark.keywordGroupMain')}
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {MAIN_DEVICE_PROFILES.map(profile => (
+                <div key={profile} className="space-y-1.5">
+                  <Label htmlFor={`benchmark-keywords-${profile}`}>
+                    {profileLabel(profile, t)}
+                  </Label>
+                  <Textarea
+                    id={`benchmark-keywords-${profile}`}
+                    value={draft[profile]}
+                    placeholder={t('benchmark.keywordPlaceholder')}
+                    rows={5}
+                    onChange={event => onChange(profile, event.target.value)}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Peripheral profiles */}
+          <div className="space-y-3">
+            <p className="text-xs font-medium text-amber-500/80 uppercase tracking-widest">
+              {t('benchmark.keywordGroupPeripheral')}
+            </p>
+            <div className="grid gap-4 sm:grid-cols-3">
+              {PERIPHERAL_PROFILES.map(profile => (
+                <div key={profile} className="space-y-1.5">
+                  <Label htmlFor={`benchmark-keywords-${profile}`}>
+                    {profileLabel(profile, t)}
+                  </Label>
+                  <Textarea
+                    id={`benchmark-keywords-${profile}`}
+                    value={draft[profile]}
+                    placeholder={t('benchmark.keywordPlaceholder')}
+                    rows={5}
+                    onChange={event => onChange(profile, event.target.value)}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-3">
+            <p className="text-xs text-zinc-600">{t('benchmark.keywordHelp')}</p>
+          </div>
+        </DialogBody>
+        <DialogFooter className="justify-between">
+          <Button variant="ghost" size="sm" onClick={onReset}>
+            {t('benchmark.keywordReset')}
+          </Button>
+          <div className="flex gap-2">
+            <DialogClose asChild>
+              <Button variant="ghost" size="sm">{t('dialog.cancel')}</Button>
+            </DialogClose>
+            <Button variant="accent" size="sm" onClick={onSave}>
+              {t('benchmark.keywordSave')}
+            </Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function SignalTile({
+  title,
+  value,
+  detail,
+  tone,
+}: {
+  title: string
+  value: string
+  detail?: string
+  tone: 'good' | 'warn' | 'muted' | 'gold'
+}) {
+  return (
+    <div className={cn(
+      'rounded-lg border px-3 py-3',
+      tone === 'good' && 'border-emerald-900 bg-emerald-950/20',
+      tone === 'warn' && 'border-amber-900 bg-amber-950/20',
+      tone === 'muted' && 'border-zinc-800 bg-zinc-950/40',
+      tone === 'gold' && 'border-amber-500/30 bg-gradient-to-br from-amber-950/25 to-yellow-950/15',
+    )}>
+      <p className={cn(
+        'text-2xs font-medium uppercase tracking-widest',
+        tone === 'good' && 'text-emerald-500',
+        tone === 'warn' && 'text-amber-500',
+        tone === 'muted' && 'text-zinc-600',
+        tone === 'gold' && 'text-amber-400',
+      )}>
+        {title}
+      </p>
+      <p className={cn(
+        'mt-1 text-sm',
+        tone === 'gold' ? 'text-amber-200' : 'text-zinc-200',
+      )}>{value}</p>
+      {detail && <p className="mt-1 text-2xs text-zinc-600">{detail}</p>}
+    </div>
+  )
+}
+
+function benchmarkPositionText(position: UpgradeSignals['position'], t: Translate) {
+  if (position === 'above') return t('benchmark.above')
+  if (position === 'below') return t('benchmark.below')
+  return t('benchmark.within')
+}
+
+function profileLabel(profile: CostBenchmarkProfile, t: Translate) {
+  if (profile === 'smartphone') return t('benchmark.profile.smartphone')
+  if (profile === 'computer') return t('benchmark.profile.computer')
+  if (profile === 'entertainment') return t('benchmark.profile.entertainment')
+  if (profile === 'gamepad') return t('benchmark.profile.gamepad')
+  if (profile === 'mouse') return t('benchmark.profile.mouse')
+  if (profile === 'keyboard') return t('benchmark.profile.keyboard')
+  return t('benchmark.profile.wearable')
+}
+
+function keywordsToDraft(keywords: CostBenchmarkKeywords): KeywordDraft {
+  return COST_BENCHMARK_PROFILES.reduce((result, profile) => {
+    result[profile] = keywords[profile].join(', ')
+    return result
+  }, {} as KeywordDraft)
+}
+
+function parseKeywordDraft(value: string) {
+  return value
+    .split(/[\n,，、]+/)
+    .map(keyword => keyword.trim())
+    .filter(Boolean)
 }
 
 function InfoRow({

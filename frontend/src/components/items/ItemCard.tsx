@@ -2,6 +2,11 @@ import { useNavigate } from 'react-router-dom'
 import { AlertTriangle } from 'lucide-react'
 import { ItemWithStats } from '@/types'
 import { formatDailyCost, formatCNY } from '@/lib/calculations'
+import {
+  inferCostBenchmark,
+  isPeripheralProfile,
+  loadCostBenchmarkKeywords,
+} from '@/lib/costBenchmarks'
 import { CategoryBadge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/i18n'
@@ -14,13 +19,22 @@ export function ItemCard({ item }: ItemCardProps) {
   const navigate = useNavigate()
   const { t, categoryLabels } = useLanguage()
 
+  // Detect if this is a peripheral in over-service (bonus) mode
+  const benchmark = inferCostBenchmark(item, loadCostBenchmarkKeywords())
+  const isPeripheral = benchmark != null && isPeripheralProfile(benchmark.profile)
+  const expectedDays = item.expected_years ? item.expected_years * 365 : null
+  const isOverService = isPeripheral && expectedDays != null && item.days_owned > expectedDays
+  const overServiceDays = isOverService ? Math.round(item.days_owned - expectedDays!) : 0
+
   return (
     <button
       onClick={() => navigate(`/item/${item.id}`)}
       className={cn(
         'w-full text-left rounded-xl border transition-all duration-150',
         'bg-zinc-900 hover:bg-zinc-800/80',
-        item.is_overdue
+        isOverService
+          ? 'border-amber-500/20 hover:border-amber-500/40'
+          : item.is_overdue
           ? 'border-amber-900/60 hover:border-amber-800/80'
           : 'border-zinc-800 hover:border-zinc-700',
         'p-5 group animate-fade-in',
@@ -37,23 +51,35 @@ export function ItemCard({ item }: ItemCardProps) {
           </div>
         </div>
 
-        {item.is_overdue && (
+        {isOverService ? (
+          <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-400 text-2xs font-medium shrink-0">
+            {t('peripheral.overService')}
+          </span>
+        ) : item.is_overdue ? (
           <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-amber-950 border border-amber-900 text-amber-400 text-2xs font-medium shrink-0">
             <AlertTriangle className="h-2.5 w-2.5" />
             {t('item.overdue')}
           </span>
-        )}
+        ) : null}
       </div>
 
       {/* Daily cost — the hero metric */}
       <div className="mb-4">
         <p className="text-2xs text-zinc-600 uppercase tracking-widest mb-1">{t('item.dailyCost')}</p>
         <div className="flex items-baseline gap-1.5">
-          <span className="font-mono text-3xl font-bold text-accent leading-none">
+          <span className={cn(
+            'font-mono text-3xl font-bold leading-none',
+            isOverService ? 'text-amber-400' : 'text-accent',
+          )}>
             {formatDailyCost(item.daily_cost)}
           </span>
           <span className="text-zinc-500 text-sm">{t('item.perDay')}</span>
         </div>
+        {isOverService && (
+          <p className="text-2xs text-amber-500/70 mt-1">
+            {t('peripheral.bonusDays', { days: overServiceDays })}
+          </p>
+        )}
       </div>
 
       {/* Footer stats */}
