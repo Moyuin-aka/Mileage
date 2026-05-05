@@ -40,35 +40,35 @@ export function Archive() {
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div>
-        <h1 className="font-serif text-2xl text-zinc-100">{t('archive.title')}</h1>
-        <p className="text-sm text-zinc-600 mt-0.5">{t('archive.subtitle')}</p>
+        <h1 className="font-serif text-2xl text-primary">{t('archive.title')}</h1>
+        <p className="text-sm text-muted mt-0.5">{t('archive.subtitle')}</p>
       </div>
 
       {/* Archive summary */}
       {!loading && items.length > 0 && (
         <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-            <p className="text-2xs text-zinc-600 uppercase tracking-widest mb-2">{t('archive.count')}</p>
-            <p className="font-mono text-xl font-bold text-zinc-100">{items.length}</p>
+          <div className="rounded-xl border border-app-border bg-surface-2 p-4">
+            <p className="text-2xs text-muted uppercase tracking-widest mb-2">{t('archive.count')}</p>
+            <p className="font-mono text-xl font-bold text-primary">{items.length}</p>
           </div>
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-            <p className="text-2xs text-zinc-600 uppercase tracking-widest mb-2">{t('archive.avgDaily')}</p>
+          <div className="rounded-xl border border-app-border bg-surface-2 p-4">
+            <p className="text-2xs text-muted uppercase tracking-widest mb-2">{t('archive.avgDaily')}</p>
             <div className="flex items-baseline gap-1">
               <span className="font-mono text-xl font-bold text-accent">
                 {formatDailyCost(avgDailyCost)}
               </span>
-              <span className="text-zinc-600 text-xs">{t('archive.perDay')}</span>
+              <span className="text-muted text-xs">{t('archive.perDay')}</span>
             </div>
           </div>
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-            <p className="text-2xs text-zinc-600 uppercase tracking-widest mb-2">{t('archive.recovered')}</p>
-            <p className="font-mono text-xl font-bold text-zinc-100">{formatCNY(recovered, 0)}</p>
+          <div className="rounded-xl border border-app-border bg-surface-2 p-4">
+            <p className="text-2xs text-muted uppercase tracking-widest mb-2">{t('archive.recovered')}</p>
+            <p className="font-mono text-xl font-bold text-primary">{formatCNY(recovered, 0)}</p>
           </div>
         </div>
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-lg p-1">
+      <div className="flex gap-1 bg-surface-2 border border-app-border rounded-lg p-1">
         {TABS.map(tab_ => (
           <button
             key={tab_.value}
@@ -76,13 +76,13 @@ export function Archive() {
             className={cn(
               'flex-1 rounded-md py-1.5 text-sm font-medium transition-colors',
               tab === tab_.value
-                ? 'bg-zinc-700 text-zinc-100'
-                : 'text-zinc-500 hover:text-zinc-300',
+                ? 'bg-surface-hover text-primary'
+                : 'text-muted hover:text-secondary',
             )}
           >
             {tab_.label}
             {tab_.value !== 'all' && (
-              <span className="ml-1.5 text-2xs text-zinc-600">
+              <span className="ml-1.5 text-2xs text-muted">
                 {items.filter(i => i.status === tab_.value).length}
               </span>
             )}
@@ -94,11 +94,11 @@ export function Archive() {
       {loading ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-28 bg-zinc-900 rounded-xl border border-zinc-800 animate-pulse" />
+            <div key={i} className="h-28 bg-surface-2 rounded-xl border border-app-border animate-pulse" />
           ))}
         </div>
       ) : error ? (
-        <div className="rounded-xl border border-red-900/50 bg-red-950/20 p-4 text-red-400 text-sm">
+        <div className="rounded-xl border border-danger-border bg-danger-bg p-4 text-danger text-sm">
           {error}
         </div>
       ) : filtered.length === 0 ? (
@@ -143,36 +143,36 @@ function ArchivedItemRow({
   return (
     <button
       onClick={onClick}
-      className="w-full text-left rounded-xl border border-zinc-800 bg-zinc-900 hover:bg-zinc-800/80 hover:border-zinc-700 transition-all p-5"
+      className="w-full text-left rounded-xl border border-app-border bg-surface-2 hover:bg-surface-3/80 hover:border-border-strong transition-all p-5"
     >
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="min-w-0">
-          <h3 className="font-serif text-zinc-100 text-sm leading-snug truncate">{item.name}</h3>
+          <h3 className="font-serif text-primary text-sm leading-snug truncate">{item.name}</h3>
           <div className="flex items-center gap-2 mt-1.5">
             <CategoryBadge category={item.category} label={categoryLabel} />
             <StatusBadge status={item.status as ItemStatus} label={statusLabel} />
           </div>
         </div>
         <div className="text-right shrink-0">
-          <p className="text-2xs text-zinc-600 mb-0.5">{t('archive.finalDaily')}</p>
+          <p className="text-2xs text-muted mb-0.5">{t('archive.finalDaily')}</p>
           <div className="flex items-baseline gap-1 justify-end">
             <span className="font-mono font-bold text-lg text-accent">
               {formatDailyCost(item.daily_cost)}
             </span>
-            <span className="text-zinc-600 text-xs">{t('archive.perDay')}</span>
+            <span className="text-muted text-xs">{t('archive.perDay')}</span>
           </div>
         </div>
       </div>
 
-      <div className="flex items-center justify-between text-xs text-zinc-600">
+      <div className="flex items-center justify-between text-xs text-muted">
         <span>
           {t('archive.held')}{' '}
-          <span className="text-zinc-400 tabular-nums font-medium">{item.days_owned}</span>{' '}
+          <span className="text-muted tabular-nums font-medium">{item.days_owned}</span>{' '}
           {t('archive.daysUnit')} ·{' '}
           {t('archive.totalCostLabel')}{' '}
-          <span className="text-zinc-400 tabular-nums">{formatCNY(item.total_cost, 0)}</span>
+          <span className="text-muted tabular-nums">{formatCNY(item.total_cost, 0)}</span>
         </span>
-        {endLabel && <span className="text-zinc-700">{endLabel}</span>}
+        {endLabel && <span className="text-muted">{endLabel}</span>}
       </div>
     </button>
   )
@@ -187,11 +187,11 @@ function EmptyArchive({ status }: { status: TabValue }) {
   }
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
-      <div className="h-12 w-12 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-4">
-        <ArchiveIcon className="h-5 w-5 text-zinc-600" />
+      <div className="h-12 w-12 rounded-2xl bg-surface-2 border border-app-border flex items-center justify-center mb-4">
+        <ArchiveIcon className="h-5 w-5 text-muted" />
       </div>
-      <p className="font-serif text-zinc-400 text-base">{labels[status]}</p>
-      <p className="text-zinc-600 text-sm mt-1">{t('archive.emptyHint')}</p>
+      <p className="font-serif text-muted text-base">{labels[status]}</p>
+      <p className="text-muted text-sm mt-1">{t('archive.emptyHint')}</p>
     </div>
   )
 }

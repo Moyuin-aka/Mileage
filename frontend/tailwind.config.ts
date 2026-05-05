@@ -6,25 +6,47 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Custom surface colors for dark-first design
         surface: {
-          DEFAULT: '#141414',
-          2: '#1c1c1c',
-          3: '#222222',
+          DEFAULT: 'rgb(var(--color-surface) / <alpha-value>)',
+          2: 'rgb(var(--color-surface-2) / <alpha-value>)',
+          3: 'rgb(var(--color-surface-3) / <alpha-value>)',
+          hover: 'rgb(var(--color-surface-hover) / <alpha-value>)',
         },
-        'app-border': '#2a2a2a',
-        // Green accent system
+        primary: 'rgb(var(--color-primary) / <alpha-value>)',
+        secondary: 'rgb(var(--color-secondary) / <alpha-value>)',
+        muted: 'rgb(var(--color-muted) / <alpha-value>)',
+        overlay: 'rgb(var(--color-overlay) / <alpha-value>)',
+        'app-border': 'rgb(var(--color-border) / <alpha-value>)',
+        'border-strong': 'rgb(var(--color-border-strong) / <alpha-value>)',
         accent: {
-          DEFAULT: '#4ade80',
-          dim: '#22c55e',
-          bg: '#052e16',
-          'bg-hover': '#073d1f',
-          muted: '#166534',
+          DEFAULT: 'rgb(var(--color-accent) / <alpha-value>)',
+          dim: 'rgb(var(--color-accent-dim) / <alpha-value>)',
+          bg: 'rgb(var(--color-accent-bg) / <alpha-value>)',
+          'bg-hover': 'rgb(var(--color-accent-bg-hover) / <alpha-value>)',
+          muted: 'rgb(var(--color-accent-muted) / <alpha-value>)',
         },
-        // Warning state (overdue items)
         warn: {
-          DEFAULT: '#fbbf24',
-          bg: '#451a03',
+          DEFAULT: 'rgb(var(--color-warn) / <alpha-value>)',
+          bg: 'rgb(var(--color-warn-bg) / <alpha-value>)',
+          'bg-hover': 'rgb(var(--color-warn-bg-hover) / <alpha-value>)',
+          border: 'rgb(var(--color-warn-border) / <alpha-value>)',
+          muted: 'rgb(var(--color-warn-muted) / <alpha-value>)',
+        },
+        danger: {
+          DEFAULT: 'rgb(var(--color-danger) / <alpha-value>)',
+          bg: 'rgb(var(--color-danger-bg) / <alpha-value>)',
+          'bg-hover': 'rgb(var(--color-danger-bg-hover) / <alpha-value>)',
+          border: 'rgb(var(--color-danger-border) / <alpha-value>)',
+        },
+        success: {
+          DEFAULT: 'rgb(var(--color-success) / <alpha-value>)',
+          bg: 'rgb(var(--color-success-bg) / <alpha-value>)',
+          border: 'rgb(var(--color-success-border) / <alpha-value>)',
+        },
+        info: {
+          DEFAULT: 'rgb(var(--color-info) / <alpha-value>)',
+          bg: 'rgb(var(--color-info-bg) / <alpha-value>)',
+          border: 'rgb(var(--color-info-border) / <alpha-value>)',
         },
       },
       fontFamily: {

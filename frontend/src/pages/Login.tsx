@@ -1,11 +1,12 @@
 import { FormEvent, useState } from 'react'
-import { ArrowRight, Loader2, LockKeyhole, TrendingDown, Languages } from 'lucide-react'
+import { ArrowRight, Loader2, LockKeyhole, TrendingDown, Languages, Moon, Sun } from 'lucide-react'
 import { api } from '@/lib/api'
 import { setAuthToken } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useLanguage } from '@/i18n'
+import { useTheme } from '@/theme'
 
 interface LoginProps {
   onAuthenticated: () => void
@@ -13,6 +14,7 @@ interface LoginProps {
 
 export function Login({ onAuthenticated }: LoginProps) {
   const { t, toggleLanguage } = useLanguage()
+  const { theme, toggleTheme } = useTheme()
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -34,7 +36,7 @@ export function Login({ onAuthenticated }: LoginProps) {
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100">
+    <main className="min-h-screen bg-surface text-primary">
       <div className="mx-auto flex min-h-screen w-full max-w-sm flex-col justify-center px-5 py-10">
         <div className="mb-8 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -43,24 +45,38 @@ export function Login({ onAuthenticated }: LoginProps) {
             </div>
             <div>
               <h1 className="font-serif text-lg font-semibold leading-none">Mileage</h1>
-              <p className="mt-1 text-xs text-zinc-500">{t('app.subtitle')}</p>
+              <p className="mt-1 text-xs text-muted">{t('app.subtitle')}</p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={toggleLanguage}
-            className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
-          >
-            <Languages className="h-4 w-4" />
-            {t('nav.language')}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={t('nav.theme')}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface-2 hover:text-secondary"
+            >
+              {theme === 'dark' ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={toggleLanguage}
+              className="flex items-center gap-1.5 text-xs text-muted hover:text-secondary transition-colors"
+            >
+              <Languages className="h-4 w-4" />
+              {t('nav.language')}
+            </button>
+          </div>
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-5 shadow-2xl shadow-black/20"
+          className="rounded-lg border border-app-border bg-surface-2/50 p-5 shadow-2xl shadow-overlay/10"
         >
-          <div className="mb-5 flex items-center gap-2 text-sm font-medium text-zinc-300">
+          <div className="mb-5 flex items-center gap-2 text-sm font-medium text-secondary">
             <LockKeyhole className="h-4 w-4 text-accent" />
             {t('login.passwordLabel')}
           </div>
@@ -80,7 +96,7 @@ export function Login({ onAuthenticated }: LoginProps) {
           </div>
 
           {error && (
-            <p className="mt-3 text-xs text-red-400" role="alert">
+            <p className="mt-3 text-xs text-danger" role="alert">
               {error}
             </p>
           )}

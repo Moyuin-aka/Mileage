@@ -33,8 +33,8 @@ function CustomTooltip({ active, payload }: TooltipProps<number, string>) {
   const day = payload[0]?.payload?.day
 
   return (
-    <div className="rounded-xl border border-zinc-700 bg-zinc-900/95 backdrop-blur px-4 py-3 shadow-xl text-sm">
-      <p className="text-zinc-500 text-xs mb-2">
+    <div className="rounded-xl border border-app-border bg-surface-2/95 backdrop-blur px-4 py-3 shadow-xl text-sm">
+      <p className="text-muted text-xs mb-2">
         {t('chart.dayPrefix')} {day} {t('chart.daySuffix')}
       </p>
       {main && (
@@ -43,7 +43,7 @@ function CustomTooltip({ active, payload }: TooltipProps<number, string>) {
         </p>
       )}
       {compare && (
-        <p className="text-blue-400 font-mono text-xs mt-1">
+        <p className="text-info font-mono text-xs mt-1">
           {t('chart.newDeviceLabel')}: {formatCNY(compare.value as number)} {t('chart.perDay')}
         </p>
       )}
@@ -75,20 +75,20 @@ export function CostTrendChart({
         <LineChart data={merged} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
           <CartesianGrid
             strokeDasharray="3 3"
-            stroke="#27272a"
+            stroke="rgb(var(--color-border))"
             strokeWidth={1}
             vertical={false}
           />
           <XAxis
             dataKey="day"
-            tick={{ fill: '#52525b', fontSize: 11 }}
+            tick={{ fill: 'rgb(var(--color-muted))', fontSize: 11 }}
             tickLine={false}
             axisLine={false}
             tickFormatter={v => `${v}${t('chart.dayUnit')}`}
             interval="preserveStartEnd"
           />
           <YAxis
-            tick={{ fill: '#52525b', fontSize: 11 }}
+            tick={{ fill: 'rgb(var(--color-muted))', fontSize: 11 }}
             tickLine={false}
             axisLine={false}
             tickFormatter={v => `¥${v.toFixed(0)}`}
@@ -100,10 +100,10 @@ export function CostTrendChart({
           {todayDay && (
             <ReferenceLine
               x={todayDay}
-              stroke="#4ade80"
+              stroke="rgb(var(--color-accent))"
               strokeDasharray="4 3"
               strokeWidth={1}
-              label={{ value: t('chart.today'), fill: '#4ade80', fontSize: 11, position: 'insideTopRight' }}
+              label={{ value: t('chart.today'), fill: 'rgb(var(--color-accent))', fontSize: 11, position: 'insideTopRight' }}
             />
           )}
 
@@ -111,19 +111,19 @@ export function CostTrendChart({
             <>
               <ReferenceLine
                 y={referenceBand.max}
-                stroke="#f59e0b"
+                stroke="rgb(var(--color-warn-muted))"
                 strokeDasharray="4 4"
                 strokeWidth={1}
                 label={{
                   value: referenceBand.label,
-                  fill: '#d97706',
+                  fill: 'rgb(var(--color-warn))',
                   fontSize: 10,
                   position: 'insideTopLeft',
                 }}
               />
               <ReferenceLine
                 y={referenceBand.min}
-                stroke="#f59e0b"
+                stroke="rgb(var(--color-warn-muted))"
                 strokeDasharray="2 4"
                 strokeWidth={1}
               />
@@ -133,37 +133,40 @@ export function CostTrendChart({
           <Line
             type="monotone"
             dataKey="daily_cost"
-            stroke="#4ade80"
+            stroke="rgb(var(--color-accent))"
             strokeWidth={2}
             dot={false}
-            activeDot={{ r: 4, fill: '#4ade80', strokeWidth: 0 }}
+            activeDot={{ r: 4, fill: 'rgb(var(--color-accent))', strokeWidth: 0 }}
           />
 
           {compareData && (
             <Line
               type="monotone"
               dataKey="compare_cost"
-              stroke="#60a5fa"
+              stroke="rgb(var(--color-info))"
               strokeWidth={1.5}
               strokeDasharray="5 3"
               dot={false}
               name={compareLabel}
-              activeDot={{ r: 3, fill: '#60a5fa', strokeWidth: 0 }}
+              activeDot={{ r: 3, fill: 'rgb(var(--color-info))', strokeWidth: 0 }}
             />
           )}
         </LineChart>
       </ResponsiveContainer>
 
       {compareData && (
-        <div className="flex items-center gap-4 mt-2 text-xs text-zinc-500 justify-end">
+        <div className="flex items-center gap-4 mt-2 text-xs text-muted justify-end">
           <span className="flex items-center gap-1.5">
             <span className="inline-block w-4 h-0.5 bg-accent rounded" />
             {t('chart.currentDevice')}
           </span>
           <span className="flex items-center gap-1.5">
             <span
-              className="inline-block w-4 h-0.5 bg-blue-400 rounded opacity-70"
-              style={{ backgroundImage: 'repeating-linear-gradient(to right, #60a5fa 0, #60a5fa 5px, transparent 5px, transparent 8px)' }}
+              className="inline-block w-4 h-0.5 bg-info rounded opacity-70"
+              style={{
+                backgroundImage:
+                  'repeating-linear-gradient(to right, rgb(var(--color-info)) 0, rgb(var(--color-info)) 5px, transparent 5px, transparent 8px)',
+              }}
             />
             {compareLabel}
           </span>

@@ -6,7 +6,7 @@ export const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDi
     <div
       ref={ref}
       className={cn(
-        'rounded-xl border border-zinc-800 bg-zinc-900',
+        'rounded-xl border border-app-border bg-surface-2',
         className,
       )}
       {...props}
@@ -33,7 +33,7 @@ export const CardFooter = React.forwardRef<HTMLDivElement, React.HTMLAttributes<
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('px-5 py-3 border-t border-zinc-800 flex items-center', className)}
+      className={cn('px-5 py-3 border-t border-app-border flex items-center', className)}
       {...props}
     />
   ),

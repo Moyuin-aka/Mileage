@@ -4,7 +4,7 @@ import { Sidebar } from './Sidebar'
 
 export function AppLayout() {
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+    <div className="min-h-screen bg-surface text-primary">
       {/* Desktop sidebar */}
       <aside className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:flex lg:w-60 lg:flex-col">
         <Sidebar />

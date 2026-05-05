@@ -41,8 +41,8 @@ export function ComparisonCalculator({ item }: ComparisonCalculatorProps) {
   return (
     <div className="space-y-5">
       <div>
-        <h3 className="font-serif text-zinc-100 text-sm mb-1">{t('calc.title')}</h3>
-        <p className="text-2xs text-zinc-600">{t('calc.hint')}</p>
+        <h3 className="font-serif text-primary text-sm mb-1">{t('calc.title')}</h3>
+        <p className="text-2xs text-muted">{t('calc.hint')}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -73,46 +73,46 @@ export function ComparisonCalculator({ item }: ComparisonCalculatorProps) {
       {newPriceNum > 0 && (
         <>
           {/* Comparison result */}
-          <div className="rounded-xl bg-zinc-900 border border-zinc-800 p-4 space-y-3">
+          <div className="rounded-xl bg-surface-2 border border-app-border p-4 space-y-3">
             <div className="flex items-center justify-between text-sm">
               <div>
-                <p className="text-zinc-500 text-xs mb-0.5">{t('calc.keepCurrent')}</p>
-                <p className="font-mono font-semibold text-zinc-100">
+                <p className="text-muted text-xs mb-0.5">{t('calc.keepCurrent')}</p>
+                <p className="font-mono font-semibold text-primary">
                   {formatDailyCost(currentFutureCost)}{' '}
-                  <span className="text-zinc-500 text-xs font-normal">{t('calc.perDay')}</span>
+                  <span className="text-muted text-xs font-normal">{t('calc.perDay')}</span>
                 </p>
               </div>
-              <ArrowRight className="h-4 w-4 text-zinc-700" />
+              <ArrowRight className="h-4 w-4 text-muted" />
               <div className="text-right">
-                <p className="text-zinc-500 text-xs mb-0.5">{t('calc.buyNew')}</p>
-                <p className="font-mono font-semibold text-zinc-100">
+                <p className="text-muted text-xs mb-0.5">{t('calc.buyNew')}</p>
+                <p className="font-mono font-semibold text-primary">
                   {formatDailyCost(newAnnualCost! / 365)}{' '}
-                  <span className="text-zinc-500 text-xs font-normal">{t('calc.perDay')}</span>
+                  <span className="text-muted text-xs font-normal">{t('calc.perDay')}</span>
                 </p>
               </div>
             </div>
 
             {breakEvenDay !== null ? (
-              <div className="pt-3 border-t border-zinc-800 flex items-start gap-2">
+              <div className="pt-3 border-t border-app-border flex items-start gap-2">
                 <TrendingDown className="h-4 w-4 text-accent mt-0.5 shrink-0" />
-                <p className="text-sm text-zinc-300">
+                <p className="text-sm text-secondary">
                   {t('calc.breakEvenPrefix')}{' '}
                   <span className="font-mono font-bold text-accent">{breakEvenDay}</span>{' '}
                   {t('calc.breakEvenDays')}{' '}
                   {t('calc.breakEvenMonthsPrefix')}{(breakEvenDay / 30).toFixed(1)}{t('calc.breakEvenMonthsSuffix')}{' '}
-                  <span className="text-zinc-400">{t('calc.breakEvenSuffix')}</span>
+                  <span className="text-muted">{t('calc.breakEvenSuffix')}</span>
                 </p>
               </div>
             ) : (
-              <div className="pt-3 border-t border-zinc-800">
-                <p className="text-sm text-zinc-500">{t('calc.noBreakEven')}</p>
+              <div className="pt-3 border-t border-app-border">
+                <p className="text-sm text-muted">{t('calc.noBreakEven')}</p>
               </div>
             )}
           </div>
 
           {/* Chart comparison */}
           <div>
-            <p className="text-xs text-zinc-600 mb-3">{t('calc.chartTitle')}</p>
+            <p className="text-xs text-muted mb-3">{t('calc.chartTitle')}</p>
             <CostTrendChart
               data={currentTrend}
               todayDay={item.days_owned}
@@ -129,9 +129,9 @@ export function ComparisonCalculator({ item }: ComparisonCalculatorProps) {
                 {formatCNY(currentFutureCost * 365, 0)}
               </p>
             </div>
-            <div className="rounded-lg bg-zinc-900 border border-zinc-800 p-3">
-              <p className="text-2xs text-zinc-500 mb-1">{t('calc.buyAnnual')}</p>
-              <p className="font-mono font-bold text-zinc-100 text-lg">
+            <div className="rounded-lg bg-surface-2 border border-app-border p-3">
+              <p className="text-2xs text-muted mb-1">{t('calc.buyAnnual')}</p>
+              <p className="font-mono font-bold text-primary text-lg">
                 {formatCNY(newAnnualCost!, 0)}
               </p>
             </div>

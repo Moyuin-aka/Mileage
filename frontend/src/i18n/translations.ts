@@ -21,6 +21,7 @@ const zh = {
   'nav.signOut': '退出',
   'nav.addItem': '添加物品',
   'nav.language': 'EN',
+  'nav.theme': '外观',
 
   // Dashboard
   'dashboard.title': '资产总览',
@@ -323,6 +324,7 @@ const en: Record<TranslationKey, string> = {
   'nav.signOut': 'Sign Out',
   'nav.addItem': 'Add Item',
   'nav.language': '中文',
+  'nav.theme': 'Theme',
 
   // Dashboard
   'dashboard.title': 'Overview',

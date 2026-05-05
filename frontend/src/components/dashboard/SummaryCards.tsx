@@ -57,24 +57,24 @@ export function SummaryCards({ stats }: SummaryCardsProps) {
             'rounded-xl border p-4',
             accent
               ? 'bg-accent-bg border-accent-muted'
-              : 'bg-zinc-900 border-zinc-800',
+              : 'bg-surface-2 border-app-border',
           )}
         >
           <div className="flex items-center justify-between mb-3">
-            <p className={cn('text-2xs font-medium uppercase tracking-widest', accent ? 'text-accent/70' : 'text-zinc-600')}>
+            <p className={cn('text-2xs font-medium uppercase tracking-widest', accent ? 'text-accent/70' : 'text-muted')}>
               {label}
             </p>
-            <Icon className={cn('h-3.5 w-3.5', accent ? 'text-accent/50' : 'text-zinc-700')} />
+            <Icon className={cn('h-3.5 w-3.5', accent ? 'text-accent/50' : 'text-muted')} />
           </div>
           <div className="flex items-baseline gap-1">
-            <span className={cn('font-mono font-bold text-2xl leading-none', accent ? 'text-accent' : 'text-zinc-100')}>
+            <span className={cn('font-mono font-bold text-2xl leading-none', accent ? 'text-accent' : 'text-primary')}>
               {value}
             </span>
             {unit && (
-              <span className={cn('text-xs', accent ? 'text-accent/60' : 'text-zinc-500')}>{unit}</span>
+              <span className={cn('text-xs', accent ? 'text-accent/60' : 'text-muted')}>{unit}</span>
             )}
           </div>
-          <p className="text-2xs text-zinc-600 mt-2">{sub}</p>
+          <p className="text-2xs text-muted mt-2">{sub}</p>
         </div>
       ))}
     </div>
