@@ -1,13 +1,27 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Archive, PlusCircle, LogOut, Languages, Sun, Moon } from 'lucide-react'
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
+import {
+  Archive,
+  ArrowRightLeft,
+  Languages,
+  LayoutDashboard,
+  LogOut,
+  Moon,
+  MoreHorizontal,
+  PlusCircle,
+  Sun,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { logout } from '@/lib/auth'
+import { FxConverterDialog } from '@/components/fx/FxConverterDialog'
 import { useLanguage } from '@/i18n'
 import { useTheme } from '@/theme'
+import { useState } from 'react'
 
 export function BottomNav() {
   const { t, toggleLanguage } = useLanguage()
   const { theme, toggleTheme } = useTheme()
+  const [fxOpen, setFxOpen] = useState(false)
 
   const navItems = [
     { to: '/', icon: LayoutDashboard, label: t('nav.assets') },
@@ -50,35 +64,66 @@ export function BottomNav() {
             )}
           </NavLink>
         ))}
-        <button
-          type="button"
-          onClick={toggleTheme}
-          className="flex flex-col items-center gap-1 px-5 py-2 text-2xs font-medium text-muted transition-colors hover:text-secondary"
-        >
-          {theme === 'dark' ? (
-            <Sun className="h-5 w-5 stroke-[1.5]" />
-          ) : (
-            <Moon className="h-5 w-5 stroke-[1.5]" />
-          )}
-          <span>{t('nav.theme')}</span>
-        </button>
-        <button
-          type="button"
-          onClick={toggleLanguage}
-          className="flex flex-col items-center gap-1 px-5 py-2 text-2xs font-medium text-muted transition-colors hover:text-secondary"
-        >
-          <Languages className="h-5 w-5 stroke-[1.5]" />
-          <span>{t('nav.language')}</span>
-        </button>
-        <button
-          type="button"
-          onClick={logout}
-          className="flex flex-col items-center gap-1 px-5 py-2 text-2xs font-medium text-muted transition-colors hover:text-secondary"
-        >
-          <LogOut className="h-5 w-5 stroke-[1.5]" />
-          <span>{t('nav.signOut')}</span>
-        </button>
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger asChild>
+            <button
+              type="button"
+              className="flex flex-col items-center gap-1 px-5 py-2 text-2xs font-medium text-muted transition-colors hover:text-secondary"
+              aria-label={t('nav.more')}
+            >
+              <MoreHorizontal className="h-5 w-5 stroke-[1.5]" />
+              <span>{t('nav.more')}</span>
+            </button>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content
+              side="top"
+              align="end"
+              sideOffset={10}
+              className={cn(
+                'z-50 min-w-44 rounded-xl border border-app-border bg-surface-2 p-1 shadow-2xl shadow-overlay/10',
+                'data-[state=open]:animate-slide-up',
+              )}
+            >
+              <DropdownMenu.Item
+                onSelect={() => setFxOpen(true)}
+                className="flex cursor-pointer select-none items-center gap-2 rounded-lg px-3 py-2 text-sm text-secondary outline-none transition-colors data-[highlighted]:bg-surface-3 data-[highlighted]:text-primary"
+              >
+                <ArrowRightLeft className="h-4 w-4 text-muted" />
+                {t('nav.fx')}
+              </DropdownMenu.Item>
+              <DropdownMenu.Separator className="my-1 h-px bg-app-border" />
+              <DropdownMenu.Item
+                onSelect={toggleTheme}
+                className="flex cursor-pointer select-none items-center gap-2 rounded-lg px-3 py-2 text-sm text-secondary outline-none transition-colors data-[highlighted]:bg-surface-3 data-[highlighted]:text-primary"
+              >
+                {theme === 'dark' ? (
+                  <Sun className="h-4 w-4 text-muted" />
+                ) : (
+                  <Moon className="h-4 w-4 text-muted" />
+                )}
+                {t('nav.theme')}
+              </DropdownMenu.Item>
+              <DropdownMenu.Item
+                onSelect={toggleLanguage}
+                className="flex cursor-pointer select-none items-center gap-2 rounded-lg px-3 py-2 text-sm text-secondary outline-none transition-colors data-[highlighted]:bg-surface-3 data-[highlighted]:text-primary"
+              >
+                <Languages className="h-4 w-4 text-muted" />
+                {t('nav.language')}
+              </DropdownMenu.Item>
+              <DropdownMenu.Separator className="my-1 h-px bg-app-border" />
+              <DropdownMenu.Item
+                onSelect={logout}
+                className="flex cursor-pointer select-none items-center gap-2 rounded-lg px-3 py-2 text-sm text-danger outline-none transition-colors data-[highlighted]:bg-danger-bg data-[highlighted]:text-danger"
+              >
+                <LogOut className="h-4 w-4" />
+                {t('nav.signOut')}
+              </DropdownMenu.Item>
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
       </div>
+      <FxConverterDialog open={fxOpen} onOpenChange={setFxOpen} />
     </nav>
   )
 }

@@ -1,5 +1,12 @@
 import pg from 'pg'
-import type { ExpenseType, Item, ItemCategory, ItemExpense, ItemStatus } from './types.js'
+import type {
+  ExpenseType,
+  Item,
+  ItemCategory,
+  ItemExpense,
+  ItemStatus,
+  MoneyCurrency,
+} from './types.js'
 
 const { Pool, types } = pg
 
@@ -22,6 +29,12 @@ export function mapItem(row: Record<string, unknown>): Item {
     name: String(row.name),
     category: row.category as ItemCategory,
     purchase_price: Number(row.purchase_price),
+    purchase_currency: (row.purchase_currency ?? 'CNY') as MoneyCurrency,
+    purchase_original_amount: optionalNumber(row.purchase_original_amount),
+    fx_rate: optionalNumber(row.fx_rate),
+    fx_rate_date: optionalDateOnly(row.fx_rate_date),
+    fx_bank_fee: Number(row.fx_bank_fee ?? 0),
+    fx_source: optionalString(row.fx_source),
     purchase_date: toDateOnly(row.purchase_date),
     expected_years: optionalNumber(row.expected_years),
     residual_value: Number(row.residual_value ?? 0),

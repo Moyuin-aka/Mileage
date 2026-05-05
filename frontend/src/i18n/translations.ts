@@ -13,6 +13,19 @@ const zh = {
   'login.submit': '进入',
   'login.error': '密码不正确',
 
+  // FX
+  'fx.title': '参考汇率换算',
+  'fx.amount': '金额',
+  'fx.from': '原币种',
+  'fx.to': '结算币种',
+  'fx.date': '交易日期',
+  'fx.bankFee': '银行手续费',
+  'fx.convert': '换算',
+  'fx.converting': '换算中',
+  'fx.result': '参考折算',
+  'fx.error': '汇率换算失败',
+  'fx.disclaimer': '参考汇率来自 Frankfurter，包含你输入的银行手续费；实际入账仍可能受授权时间、处理时间、发卡行费率和商户 DCC 影响。',
+
   // Navigation
   'nav.assets': '资产',
   'nav.new': '新增',
@@ -22,6 +35,8 @@ const zh = {
   'nav.addItem': '添加物品',
   'nav.language': 'EN',
   'nav.theme': '外观',
+  'nav.more': '更多',
+  'nav.fx': '汇率换算',
 
   // Dashboard
   'dashboard.title': '资产总览',
@@ -83,6 +98,8 @@ const zh = {
   'detail.costForecastSuffix': '元/天',
   'detail.info': '详细信息',
   'detail.purchasePrice': '购入价格',
+  'detail.fxOriginal': '原币支付',
+  'detail.fxRate': '参考汇率',
   'detail.residualValue': '预估残值',
   'detail.includedExpenses': '计入成本的后续支出',
   'detail.totalCost': '总拥有成本',
@@ -211,6 +228,11 @@ const zh = {
   'form.namePlaceholder': '例如：MacBook Pro 16" M3 Max',
   'form.category': '类别',
   'form.purchasePrice': '购入价格（元）',
+  'form.fxTitle': '外币支付',
+  'form.fxHint': '用 Frankfurter 参考汇率折算后填入人民币购买价',
+  'form.originalAmount': '原币金额',
+  'form.fxNeedAmount': '请输入原币金额',
+  'form.fxConvert': '换算并填入',
   'form.purchaseDate': '购入日期',
   'form.expectedYears': '预期使用年限（年）',
   'form.expectedYearsPlaceholder': '如 3',
@@ -316,6 +338,19 @@ const en: Record<TranslationKey, string> = {
   'login.submit': 'Sign In',
   'login.error': 'Incorrect password',
 
+  // FX
+  'fx.title': 'Reference FX Converter',
+  'fx.amount': 'Amount',
+  'fx.from': 'From',
+  'fx.to': 'Billing currency',
+  'fx.date': 'Transaction date',
+  'fx.bankFee': 'Bank fee',
+  'fx.convert': 'Convert',
+  'fx.converting': 'Converting',
+  'fx.result': 'Indicative conversion',
+  'fx.error': 'FX conversion failed',
+  'fx.disclaimer': 'Reference rates are provided by Frankfurter and include the bank fee you entered. Actual billing may still depend on authorization time, processing time, issuer fees, and merchant DCC.',
+
   // Navigation
   'nav.assets': 'Assets',
   'nav.new': 'New',
@@ -325,6 +360,8 @@ const en: Record<TranslationKey, string> = {
   'nav.addItem': 'Add Item',
   'nav.language': '中文',
   'nav.theme': 'Theme',
+  'nav.more': 'More',
+  'nav.fx': 'FX Converter',
 
   // Dashboard
   'dashboard.title': 'Overview',
@@ -386,6 +423,8 @@ const en: Record<TranslationKey, string> = {
   'detail.costForecastSuffix': '/day',
   'detail.info': 'Details',
   'detail.purchasePrice': 'Purchase Price',
+  'detail.fxOriginal': 'Original Currency',
+  'detail.fxRate': 'Reference Rate',
   'detail.residualValue': 'Residual Value',
   'detail.includedExpenses': 'Included Expenses',
   'detail.totalCost': 'Total Cost',
@@ -514,6 +553,11 @@ const en: Record<TranslationKey, string> = {
   'form.namePlaceholder': 'e.g. MacBook Pro 16" M3 Max',
   'form.category': 'Category',
   'form.purchasePrice': 'Purchase Price',
+  'form.fxTitle': 'Foreign Currency Payment',
+  'form.fxHint': 'Convert with Frankfurter reference rates and fill the CNY purchase price',
+  'form.originalAmount': 'Original amount',
+  'form.fxNeedAmount': 'Enter the original amount',
+  'form.fxConvert': 'Convert and Fill',
   'form.purchaseDate': 'Purchase Date',
   'form.expectedYears': 'Expected Lifespan (yrs)',
   'form.expectedYearsPlaceholder': 'e.g. 3',

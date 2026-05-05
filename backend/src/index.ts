@@ -4,8 +4,9 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { HTTPException } from 'hono/http-exception'
 import type { Context } from 'hono'
-import type { ExpenseInput, ItemInput } from './types.js'
+import type { ExpenseInput, FxConversionInput, ItemInput } from './types.js'
 import { mapExpense, mapItem, pool } from './db.js'
+import { convertFx, normalizeFxInput } from './fx.js'
 import { runMigrations } from './migrations.js'
 import { isUploadedImage, parseOrderImage, shutdownOcrWorker, warmOcrWorker } from './ocr.js'
 import { computeItemStats, generateCostTrend, todayDateOnly } from './stats.js'
@@ -262,6 +263,23 @@ app.post('/api/ocr/parse', async c => {
   }
 })
 
+app.post('/api/fx/convert', handleFxConvert)
+app.post('/api/fx/mastercard/convert', handleFxConvert)
+
+async function handleFxConvert(c: Context) {
+  const body = await readJson<FxConversionInput>(c)
+  const input = normalizeFxInput(body)
+
+  try {
+    return c.json(await convertFx(input))
+  } catch (error) {
+    return c.json(
+      { error: 'FX conversion failed', detail: errorMessage(error) },
+      502,
+    )
+  }
+}
+
 app.onError((error, c) => {
   if (error instanceof ValidationError) {
     return c.json({ error: 'Validation failed', issues: error.issues }, 400)
@@ -380,6 +398,12 @@ async function insertItem(input: NormalizedItemInput) {
        name,
        category,
        purchase_price,
+       purchase_currency,
+       purchase_original_amount,
+       fx_rate,
+       fx_rate_date,
+       fx_bank_fee,
+       fx_source,
        purchase_date,
        expected_years,
        residual_value,
@@ -391,7 +415,7 @@ async function insertItem(input: NormalizedItemInput) {
        notes,
        image_url
      )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
      RETURNING *`,
     inputValues(input),
   )
@@ -440,16 +464,22 @@ async function updateItem(id: string, input: NormalizedItemInput) {
        name = $2,
        category = $3,
        purchase_price = $4,
-       purchase_date = $5,
-       expected_years = $6,
-       residual_value = $7,
-       purchase_channel = $8,
-       status = $9,
-       retired_at = $10,
-       sold_at = $11,
-       sold_price = $12,
-       notes = $13,
-       image_url = $14
+       purchase_currency = $5,
+       purchase_original_amount = $6,
+       fx_rate = $7,
+       fx_rate_date = $8,
+       fx_bank_fee = $9,
+       fx_source = $10,
+       purchase_date = $11,
+       expected_years = $12,
+       residual_value = $13,
+       purchase_channel = $14,
+       status = $15,
+       retired_at = $16,
+       sold_at = $17,
+       sold_price = $18,
+       notes = $19,
+       image_url = $20
      WHERE id = $1 AND deleted_at IS NULL
      RETURNING *`,
     [id, ...inputValues(input)],
@@ -462,6 +492,12 @@ function inputValues(input: NormalizedItemInput) {
     input.name,
     input.category,
     input.purchase_price,
+    input.purchase_currency,
+    input.purchase_original_amount,
+    input.fx_rate,
+    input.fx_rate_date,
+    input.fx_bank_fee,
+    input.fx_source,
     input.purchase_date,
     input.expected_years,
     input.residual_value,

@@ -15,6 +15,8 @@ export type ExpenseType =
   | 'warranty'
   | 'other'
 
+export type MoneyCurrency = 'CNY' | 'USD' | 'HKD' | 'JPY' | 'EUR' | 'GBP' | 'TWD' | 'MOP'
+
 export interface ItemExpense {
   id: string
   item_id: string
@@ -32,6 +34,12 @@ export interface Item {
   name: string
   category: ItemCategory
   purchase_price: number
+  purchase_currency: MoneyCurrency
+  purchase_original_amount?: number
+  fx_rate?: number
+  fx_rate_date?: string
+  fx_bank_fee: number
+  fx_source?: string
   purchase_date: string
   expected_years?: number
   residual_value: number
@@ -78,6 +86,12 @@ export interface ItemInput {
   name?: unknown
   category?: unknown
   purchase_price?: unknown
+  purchase_currency?: unknown
+  purchase_original_amount?: unknown
+  fx_rate?: unknown
+  fx_rate_date?: unknown
+  fx_bank_fee?: unknown
+  fx_source?: unknown
   purchase_date?: unknown
   expected_years?: unknown
   residual_value?: unknown
@@ -96,4 +110,25 @@ export interface ExpenseInput {
   expense_date?: unknown
   description?: unknown
   counts_in_cost?: unknown
+}
+
+export interface FxConversionInput {
+  amount?: unknown
+  from_currency?: unknown
+  to_currency?: unknown
+  date?: unknown
+  bank_fee?: unknown
+}
+
+export interface FxConversionResult {
+  source: 'frankfurter' | 'mastercard'
+  amount: number
+  from_currency: MoneyCurrency
+  converted_amount: number
+  to_currency: MoneyCurrency
+  rate: number
+  date: string
+  bank_fee: number
+  fetched_at: string
+  indicative: boolean
 }

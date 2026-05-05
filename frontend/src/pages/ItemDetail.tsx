@@ -31,6 +31,7 @@ import {
   type UpgradeSignals,
 } from '@/lib/costBenchmarks'
 import { formatDate } from '@/lib/utils'
+import { formatCurrencyAmount } from '@/lib/currency'
 import { CostTrendChart } from '@/components/items/CostTrendChart'
 import { ComparisonCalculator } from '@/components/items/ComparisonCalculator'
 import { CategoryBadge, StatusBadge } from '@/components/ui/badge'
@@ -341,6 +342,21 @@ export function ItemDetail() {
         <h2 className="font-serif text-sm text-primary">{t('detail.info')}</h2>
         <div className="grid grid-cols-2 gap-x-6 gap-y-4">
           <InfoRow icon={DollarSign} label={t('detail.purchasePrice')} value={formatCNY(item.purchase_price)} />
+          {item.purchase_currency !== 'CNY' && item.purchase_original_amount != null && (
+            <InfoRow
+              icon={DollarSign}
+              label={t('detail.fxOriginal')}
+              value={formatCurrencyAmount(item.purchase_original_amount, item.purchase_currency)}
+            />
+          )}
+          {item.purchase_currency !== 'CNY' && item.fx_rate != null && (
+            <InfoRow
+              icon={DollarSign}
+              label={t('detail.fxRate')}
+              value={`1 ${item.purchase_currency} = ${item.fx_rate.toFixed(6)} CNY · ${item.fx_rate_date ?? item.purchase_date} · ${item.fx_bank_fee ?? 0}%`}
+              colSpan
+            />
+          )}
           <InfoRow icon={DollarSign} label={t('detail.residualValue')} value={formatCNY(item.residual_value)} />
           <InfoRow icon={Wrench} label={t('detail.includedExpenses')} value={formatCNY(expenseTotal)} />
           <InfoRow icon={DollarSign} label={t('detail.totalCost')} value={formatCNY(item.total_cost)} />

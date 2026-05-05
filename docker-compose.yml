@@ -20,6 +20,9 @@ services:
       args:
         NPM_PROXY: ${NPM_PROXY:-}
     restart: unless-stopped
+    dns:
+      - ${API_DNS_PRIMARY:-1.1.1.1}
+      - ${API_DNS_SECONDARY:-8.8.8.8}
     environment:
       PORT: 8080
       APP_PASSWORD: ${APP_PASSWORD:?APP_PASSWORD is required}

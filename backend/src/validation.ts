@@ -5,6 +5,7 @@ import type {
   ItemCategory,
   ItemInput,
   ItemStatus,
+  MoneyCurrency,
 } from './types.js'
 import { todayDateOnly } from './stats.js'
 
@@ -17,6 +18,7 @@ const CATEGORIES = new Set<ItemCategory>([
 ])
 
 const STATUSES = new Set<ItemStatus>(['active', 'retired', 'sold'])
+const CURRENCIES = new Set<MoneyCurrency>(['CNY', 'USD', 'HKD', 'JPY', 'EUR', 'GBP', 'TWD', 'MOP'])
 
 const EXPENSE_TYPES = new Set<ExpenseType>([
   'repair',
@@ -31,6 +33,12 @@ export interface NormalizedItemInput {
   name: string
   category: ItemCategory
   purchase_price: number
+  purchase_currency: MoneyCurrency
+  purchase_original_amount: number | null
+  fx_rate: number | null
+  fx_rate_date: string | null
+  fx_bank_fee: number
+  fx_source: string | null
   purchase_date: string
   expected_years: number | null
   residual_value: number
@@ -67,6 +75,14 @@ export function normalizeItemInput(input: ItemInput, existing?: Item): Normalize
     'purchase_price',
     issues,
   )
+  const purchaseCurrency = parseCurrency(input.purchase_currency ?? existing?.purchase_currency ?? 'CNY', issues)
+  let purchaseOriginalAmount = optionalNumber(
+    input.purchase_original_amount ?? existing?.purchase_original_amount,
+  )
+  let fxRate = optionalNumber(input.fx_rate ?? existing?.fx_rate)
+  let fxRateDate = optionalDateOnly(input.fx_rate_date ?? existing?.fx_rate_date)
+  let fxBankFee = optionalNumber(input.fx_bank_fee ?? existing?.fx_bank_fee) ?? 0
+  let fxSource = optionalString(input.fx_source ?? existing?.fx_source)
   const purchaseDate = requiredDateOnly(
     input.purchase_date ?? existing?.purchase_date,
     'purchase_date',
@@ -84,6 +100,11 @@ export function normalizeItemInput(input: ItemInput, existing?: Item): Normalize
   let soldPrice = optionalNumber(input.sold_price ?? existing?.sold_price)
 
   if (purchasePrice != null && purchasePrice < 0) issues.push('purchase_price must be >= 0')
+  if (purchaseOriginalAmount != null && purchaseOriginalAmount < 0) {
+    issues.push('purchase_original_amount must be >= 0')
+  }
+  if (fxRate != null && fxRate <= 0) issues.push('fx_rate must be > 0')
+  if (fxBankFee < 0) issues.push('fx_bank_fee must be >= 0')
   if (expectedYears != null && expectedYears <= 0) issues.push('expected_years must be > 0')
   if (residualValue < 0) issues.push('residual_value must be >= 0')
   if (soldPrice != null && soldPrice < 0) issues.push('sold_price must be >= 0')
@@ -97,6 +118,17 @@ export function normalizeItemInput(input: ItemInput, existing?: Item): Normalize
   }
   if (soldAt && purchaseDate && soldAt < purchaseDate) {
     issues.push('sold_at cannot be before purchase_date')
+  }
+  if (fxRateDate && purchaseDate && fxRateDate > todayDateOnly()) {
+    issues.push('fx_rate_date cannot be in the future')
+  }
+
+  if (purchaseCurrency === 'CNY') {
+    purchaseOriginalAmount = null
+    fxRate = null
+    fxRateDate = null
+    fxBankFee = 0
+    fxSource = null
   }
 
   if (status === 'active') {
@@ -123,6 +155,12 @@ export function normalizeItemInput(input: ItemInput, existing?: Item): Normalize
     name: name!,
     category: category!,
     purchase_price: purchasePrice!,
+    purchase_currency: purchaseCurrency!,
+    purchase_original_amount: purchaseOriginalAmount,
+    fx_rate: fxRate,
+    fx_rate_date: fxRateDate,
+    fx_bank_fee: fxBankFee,
+    fx_source: fxSource,
     purchase_date: purchaseDate!,
     expected_years: expectedYears,
     residual_value: residualValue,
@@ -222,6 +260,14 @@ function parseStatus(value: unknown, issues: string[]): ItemStatus | null {
     return value as ItemStatus
   }
   issues.push('status is invalid')
+  return null
+}
+
+function parseCurrency(value: unknown, issues: string[]): MoneyCurrency | null {
+  if (typeof value === 'string' && CURRENCIES.has(value as MoneyCurrency)) {
+    return value as MoneyCurrency
+  }
+  issues.push('purchase_currency is invalid')
   return null
 }
 

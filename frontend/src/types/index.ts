@@ -37,6 +37,12 @@ export interface Item {
   name: string
   category: ItemCategory
   purchase_price: number
+  purchase_currency: MoneyCurrency
+  purchase_original_amount?: number
+  fx_rate?: number
+  fx_rate_date?: string
+  fx_bank_fee: number
+  fx_source?: string
   purchase_date: string       // ISO date: YYYY-MM-DD
   expected_years?: number
   residual_value: number
@@ -119,6 +125,27 @@ export interface OcrParseResult {
   }
   raw_text: string
   lines: OcrLine[]
+}
+
+export interface FxConversionInput {
+  amount: number
+  from_currency: MoneyCurrency
+  to_currency: MoneyCurrency
+  date: string
+  bank_fee: number
+}
+
+export interface FxConversionResult {
+  source: 'frankfurter' | 'mastercard'
+  amount: number
+  from_currency: MoneyCurrency
+  converted_amount: number
+  to_currency: MoneyCurrency
+  rate: number
+  date: string
+  bank_fee: number
+  fetched_at: string
+  indicative: boolean
 }
 
 export const CATEGORY_LABELS: Record<ItemCategory, string> = {

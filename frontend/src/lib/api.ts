@@ -2,6 +2,8 @@ import {
   CostTrendPoint,
   DashboardStats,
   ExpenseFormData,
+  FxConversionInput,
+  FxConversionResult,
   Item,
   ItemExpense,
   ItemFormData,
@@ -115,4 +117,11 @@ export const api = {
       headers: authHeader(),
     })
   },
+
+  // ── FX ────────────────────────────────────────────────────────────────────
+  convertFx: (data: FxConversionInput) =>
+    request<FxConversionResult>('/api/fx/convert', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 }

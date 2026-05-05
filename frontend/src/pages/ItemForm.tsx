@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Camera, Check, Loader2, Wand2 } from 'lucide-react'
+import { ArrowLeft, ArrowRightLeft, Camera, Check, Loader2, Wand2 } from 'lucide-react'
 import {
+  FxConversionResult,
   ItemCategory,
   ItemStatus,
   ItemFormData,
@@ -11,6 +12,7 @@ import {
 } from '@/types'
 import { useItem, useItemMutations } from '@/hooks/useItems'
 import { api } from '@/lib/api'
+import { formatCurrencyAmount, moneyPrefix, MONEY_CURRENCIES } from '@/lib/currency'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -38,6 +40,8 @@ const DEFAULTS: ItemFormData = {
   name: '',
   category: 'electronics',
   purchase_price: 0,
+  purchase_currency: 'CNY',
+  fx_bank_fee: 0,
   purchase_date: new Date().toISOString().slice(0, 10),
   expected_years: undefined,
   residual_value: 0,
@@ -47,17 +51,6 @@ const DEFAULTS: ItemFormData = {
   sold_price: undefined,
   notes: '',
   image_url: '',
-}
-
-const CURRENCY_PREFIX: Record<MoneyCurrency, string> = {
-  CNY: '¥',
-  USD: '$',
-  HKD: 'HK$',
-  JPY: '¥',
-  EUR: '€',
-  GBP: '£',
-  TWD: 'NT$',
-  MOP: 'MOP$',
 }
 
 const EMPTY_OCR_DRAFT: {
@@ -92,6 +85,9 @@ export function ItemForm() {
   const [ocrResult, setOcrResult] = useState<OcrParseResult | null>(null)
   const [ocrDraft, setOcrDraft] = useState(EMPTY_OCR_DRAFT)
   const [ocrDialogOpen, setOcrDialogOpen] = useState(false)
+  const [fxLoading, setFxLoading] = useState(false)
+  const [fxError, setFxError] = useState('')
+  const [fxResult, setFxResult] = useState<FxConversionResult | null>(null)
 
   useEffect(() => {
     if (isEditing && item) {
@@ -99,6 +95,12 @@ export function ItemForm() {
         name: item.name,
         category: item.category,
         purchase_price: item.purchase_price,
+        purchase_currency: item.purchase_currency ?? 'CNY',
+        purchase_original_amount: item.purchase_original_amount,
+        fx_rate: item.fx_rate,
+        fx_rate_date: toDateInputValue(item.fx_rate_date),
+        fx_bank_fee: item.fx_bank_fee ?? 0,
+        fx_source: item.fx_source,
         purchase_date: toDateInputValue(item.purchase_date),
         expected_years: item.expected_years,
         residual_value: item.residual_value,
@@ -153,15 +155,65 @@ export function ItemForm() {
   }
 
   function handleOcrApply() {
+    const parsedPrice = Number.parseFloat(ocrDraft.purchase_price)
+    const currency = ocrDraft.purchase_currency || 'CNY'
     setForm(prev => ({
       ...prev,
       name: ocrDraft.name.trim() || prev.name,
       category: ocrDraft.category,
-      purchase_price: Number.parseFloat(ocrDraft.purchase_price) || prev.purchase_price,
+      purchase_price:
+        currency === 'CNY' && Number.isFinite(parsedPrice)
+          ? parsedPrice
+          : prev.purchase_price,
+      purchase_currency: currency || 'CNY',
+      purchase_original_amount:
+        currency !== 'CNY' && Number.isFinite(parsedPrice)
+          ? parsedPrice
+          : currency === 'CNY'
+          ? undefined
+          : prev.purchase_original_amount,
+      fx_rate: currency === 'CNY' ? undefined : prev.fx_rate,
+      fx_rate_date: currency === 'CNY' ? undefined : prev.fx_rate_date,
+      fx_source: currency === 'CNY' ? undefined : prev.fx_source,
       purchase_date: ocrDraft.purchase_date || prev.purchase_date,
       purchase_channel: ocrDraft.purchase_channel.trim() || prev.purchase_channel,
     }))
     setOcrDialogOpen(false)
+  }
+
+  async function handleFxConvert() {
+    if (form.purchase_currency === 'CNY') return
+    const originalAmount = Number(form.purchase_original_amount)
+    if (!Number.isFinite(originalAmount) || originalAmount <= 0) {
+      setFxError(t('form.fxNeedAmount'))
+      return
+    }
+
+    setFxLoading(true)
+    setFxError('')
+    try {
+      const result = await api.convertFx({
+        amount: originalAmount,
+        from_currency: form.purchase_currency,
+        to_currency: 'CNY',
+        date: form.purchase_date,
+        bank_fee: Number(form.fx_bank_fee) || 0,
+      })
+      setFxResult(result)
+      setForm(prev => ({
+        ...prev,
+        purchase_price: roundMoney(result.converted_amount),
+        fx_rate: result.rate,
+        fx_rate_date: result.date,
+        fx_bank_fee: result.bank_fee,
+        fx_source: result.source,
+      }))
+    } catch (error) {
+      setFxResult(null)
+      setFxError(error instanceof Error ? error.message : t('fx.error'))
+    } finally {
+      setFxLoading(false)
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -171,6 +223,15 @@ export function ItemForm() {
     const payload: ItemFormData = {
       ...form,
       purchase_price: Number(form.purchase_price) || 0,
+      purchase_currency: form.purchase_currency ?? 'CNY',
+      purchase_original_amount:
+        form.purchase_currency !== 'CNY' && form.purchase_original_amount != null
+          ? Number(form.purchase_original_amount) || undefined
+          : undefined,
+      fx_rate: form.purchase_currency !== 'CNY' ? form.fx_rate : undefined,
+      fx_rate_date: form.purchase_currency !== 'CNY' ? form.fx_rate_date : undefined,
+      fx_bank_fee: form.purchase_currency !== 'CNY' ? Number(form.fx_bank_fee) || 0 : 0,
+      fx_source: form.purchase_currency !== 'CNY' ? form.fx_source : undefined,
       residual_value: Number(form.residual_value) || 0,
       expected_years: form.expected_years ? Number(form.expected_years) : undefined,
       sold_price: form.sold_price ? Number(form.sold_price) : undefined,
@@ -268,6 +329,100 @@ export function ItemForm() {
                 required
               />
             </Field>
+          </div>
+
+          <div className="rounded-xl border border-app-border bg-surface-2/40 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-secondary">{t('form.fxTitle')}</p>
+                <p className="mt-0.5 text-2xs text-muted">{t('form.fxHint')}</p>
+              </div>
+              <div className="w-24 shrink-0">
+                <CurrencySelect
+                  value={form.purchase_currency ?? 'CNY'}
+                  onChange={currency => {
+                    setFxResult(null)
+                    setFxError('')
+                    setForm(prev => ({
+                      ...prev,
+                      purchase_currency: currency,
+                      purchase_original_amount: currency === 'CNY' ? undefined : prev.purchase_original_amount,
+                      fx_rate: currency === 'CNY' ? undefined : prev.fx_rate,
+                      fx_rate_date: currency === 'CNY' ? undefined : prev.fx_rate_date,
+                      fx_bank_fee: currency === 'CNY' ? 0 : prev.fx_bank_fee ?? 0,
+                      fx_source: currency === 'CNY' ? undefined : prev.fx_source,
+                    }))
+                  }}
+                />
+              </div>
+            </div>
+
+            {form.purchase_currency !== 'CNY' && (
+              <div className="mt-4 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="purchase-original-amount">{t('form.originalAmount')}</Label>
+                    <Input
+                      id="purchase-original-amount"
+                      type="number"
+                      min={0}
+                      step={0.01}
+                      prefix={moneyPrefix(form.purchase_currency)}
+                      value={form.purchase_original_amount ?? ''}
+                      onChange={event => {
+                        setFxResult(null)
+                        set('purchase_original_amount', event.target.value ? Number(event.target.value) : undefined)
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="purchase-fx-bank-fee">{t('fx.bankFee')}</Label>
+                    <Input
+                      id="purchase-fx-bank-fee"
+                      type="number"
+                      min={0}
+                      step={0.01}
+                      suffix="%"
+                      value={form.fx_bank_fee ?? 0}
+                      onChange={event => {
+                        setFxResult(null)
+                        set('fx_bank_fee', Number(event.target.value) || 0)
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {(fxResult || form.fx_rate) && (
+                  <div className="rounded-lg border border-accent-muted bg-accent-bg px-3 py-2">
+                    <p className="text-xs text-accent">
+                      {formatCurrencyAmount(Number(form.purchase_price) || 0, 'CNY')}{' '}
+                      <span className="text-accent/70">
+                        · 1 {form.purchase_currency} = {(fxResult?.rate ?? form.fx_rate ?? 0).toFixed(6)} CNY
+                      </span>
+                    </p>
+                  </div>
+                )}
+
+                {fxError && (
+                  <p className="text-xs text-danger">{fxError}</p>
+                )}
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleFxConvert}
+                  disabled={fxLoading || !form.purchase_original_amount}
+                >
+                  {fxLoading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <ArrowRightLeft className="h-3.5 w-3.5" />
+                  )}
+                  {fxLoading ? t('fx.converting') : t('form.fxConvert')}
+                </Button>
+              </div>
+            )}
           </div>
         </section>
 
@@ -608,11 +763,34 @@ function CandidateRow<T extends string | number>({
   )
 }
 
-function moneyPrefix(currency: MoneyCurrency | '') {
-  return currency ? CURRENCY_PREFIX[currency] : '¥'
+function formatMoneyCandidate(candidate: OcrCandidate<number>) {
+  const prefix = moneyPrefix(candidate.currency ?? '')
+  return candidate.currency ? `${prefix}${candidate.value} ${candidate.currency}` : `${prefix}${candidate.value}`
 }
 
-function formatMoneyCandidate(candidate: OcrCandidate<number>) {
-  const prefix = candidate.currency ? CURRENCY_PREFIX[candidate.currency] : '¥'
-  return candidate.currency ? `${prefix}${candidate.value} ${candidate.currency}` : `${prefix}${candidate.value}`
+function CurrencySelect({
+  value,
+  onChange,
+}: {
+  value: MoneyCurrency
+  onChange: (value: MoneyCurrency) => void
+}) {
+  return (
+    <Select value={value} onValueChange={value_ => onChange(value_ as MoneyCurrency)}>
+      <SelectTrigger>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {MONEY_CURRENCIES.map(currency => (
+          <SelectItem key={currency} value={currency}>
+            {currency}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
+
+function roundMoney(value: number) {
+  return Math.round(value * 100) / 100
 }

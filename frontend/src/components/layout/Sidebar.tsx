@@ -1,8 +1,20 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Archive, PlusCircle, TrendingDown, LogOut, Languages, Sun, Moon } from 'lucide-react'
+import {
+  Archive,
+  ArrowRightLeft,
+  Languages,
+  LayoutDashboard,
+  LogOut,
+  Moon,
+  PlusCircle,
+  Sun,
+  TrendingDown,
+} from 'lucide-react'
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { logout } from '@/lib/auth'
+import { FxConverterDialog } from '@/components/fx/FxConverterDialog'
 import { useLanguage } from '@/i18n'
 import { useTheme } from '@/theme'
 
@@ -10,6 +22,7 @@ export function Sidebar() {
   const navigate = useNavigate()
   const { t, toggleLanguage } = useLanguage()
   const { theme, toggleTheme } = useTheme()
+  const [fxOpen, setFxOpen] = useState(false)
 
   const navItems = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -70,6 +83,16 @@ export function Sidebar() {
         variant="ghost"
         size="md"
         className="w-full mt-2 justify-start text-muted"
+        onClick={() => setFxOpen(true)}
+      >
+        <ArrowRightLeft className="h-4 w-4" />
+        {t('nav.fx')}
+      </Button>
+
+      <Button
+        variant="ghost"
+        size="md"
+        className="w-full mt-1 justify-start text-muted"
         onClick={toggleTheme}
       >
         {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
@@ -95,6 +118,8 @@ export function Sidebar() {
         <LogOut className="h-4 w-4" />
         {t('nav.signOut')}
       </Button>
+
+      <FxConverterDialog open={fxOpen} onOpenChange={setFxOpen} />
     </div>
   )
 }
