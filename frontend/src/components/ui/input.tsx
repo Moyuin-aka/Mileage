@@ -12,15 +12,15 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       return (
         <div className="relative flex items-center">
           {prefix && (
-            <span className="absolute left-3 text-sm text-zinc-500 pointer-events-none select-none">
+            <span className="absolute left-3 text-sm text-muted pointer-events-none select-none">
               {prefix}
             </span>
           )}
           <input
             ref={ref}
             className={cn(
-              'w-full rounded-lg bg-zinc-800/60 border border-zinc-700',
-              'text-zinc-100 placeholder:text-zinc-600',
+              'w-full rounded-lg bg-surface-3/60 border border-border-strong',
+              'text-primary placeholder:text-muted',
               'text-sm h-10',
               'focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/60',
               'transition-colors duration-100',
@@ -31,7 +31,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             {...props}
           />
           {suffix && (
-            <span className="absolute right-3 text-sm text-zinc-500 pointer-events-none select-none">
+            <span className="absolute right-3 text-sm text-muted pointer-events-none select-none">
               {suffix}
             </span>
           )}
@@ -43,8 +43,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       <input
         ref={ref}
         className={cn(
-          'w-full rounded-lg bg-zinc-800/60 border border-zinc-700 px-3',
-          'text-zinc-100 placeholder:text-zinc-600',
+          'w-full rounded-lg bg-surface-3/60 border border-border-strong px-3',
+          'text-primary placeholder:text-muted',
           'text-sm h-10',
           'focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/60',
           'transition-colors duration-100',
@@ -64,8 +64,8 @@ export const Textarea = React.forwardRef<
   <textarea
     ref={ref}
     className={cn(
-      'w-full rounded-lg bg-zinc-800/60 border border-zinc-700 px-3 py-2.5',
-      'text-zinc-100 placeholder:text-zinc-600',
+      'w-full rounded-lg bg-surface-3/60 border border-border-strong px-3 py-2.5',
+      'text-primary placeholder:text-muted',
       'text-sm resize-none',
       'focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/60',
       'transition-colors duration-100',

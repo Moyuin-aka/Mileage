@@ -186,10 +186,10 @@ export function ItemForm() {
   if (isEditing && itemLoading) {
     return (
       <div className="space-y-4 animate-pulse">
-        <div className="h-4 w-24 bg-zinc-800 rounded" />
-        <div className="h-8 w-40 bg-zinc-800 rounded" />
+        <div className="h-4 w-24 bg-surface-3 rounded" />
+        <div className="h-8 w-40 bg-surface-3 rounded" />
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-10 bg-zinc-900 rounded-lg border border-zinc-800" />
+          <div key={i} className="h-10 bg-surface-2 rounded-lg border border-app-border" />
         ))}
       </div>
     )
@@ -201,15 +201,15 @@ export function ItemForm() {
       <div>
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-1.5 text-zinc-500 hover:text-zinc-300 transition-colors text-sm mb-4"
+          className="flex items-center gap-1.5 text-muted hover:text-secondary transition-colors text-sm mb-4"
         >
           <ArrowLeft className="h-4 w-4" />
           {t('detail.back')}
         </button>
-        <h1 className="font-serif text-2xl text-zinc-100">
+        <h1 className="font-serif text-2xl text-primary">
           {isEditing ? t('form.titleEdit') : t('form.titleNew')}
         </h1>
-        <p className="text-sm text-zinc-600 mt-0.5">
+        <p className="text-sm text-muted mt-0.5">
           {isEditing ? t('form.subtitleEdit') : t('form.subtitleNew')}
         </p>
       </div>
@@ -380,7 +380,7 @@ export function ItemForm() {
           }}
         />
 
-        <div className="rounded-xl border border-zinc-800 border-dashed p-4">
+        <div className="rounded-xl border border-app-border border-dashed p-4">
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-accent-muted bg-accent-bg">
@@ -391,8 +391,8 @@ export function ItemForm() {
                 )}
               </div>
               <div className="min-w-0">
-                <p className="text-sm text-zinc-300">{t('form.ocrTitle')}</p>
-                <p className="mt-0.5 truncate text-2xs text-zinc-600">{t('form.ocrHint')}</p>
+                <p className="text-sm text-secondary">{t('form.ocrTitle')}</p>
+                <p className="mt-0.5 truncate text-2xs text-muted">{t('form.ocrHint')}</p>
               </div>
             </div>
             <Button
@@ -407,7 +407,7 @@ export function ItemForm() {
             </Button>
           </div>
           {ocrError && (
-            <p className="mt-3 text-xs text-red-400" role="alert">
+            <p className="mt-3 text-xs text-danger" role="alert">
               {ocrError}
             </p>
           )}
@@ -493,20 +493,20 @@ export function ItemForm() {
                 </Field>
               </div>
 
-              <div className="rounded-lg border border-zinc-800 bg-zinc-900/40">
-                <div className="flex items-center justify-between border-b border-zinc-800 px-3 py-2">
-                  <span className="text-xs font-medium text-zinc-500">{t('form.ocrRawText')}</span>
-                  <span className="text-2xs text-zinc-600">
+              <div className="rounded-lg border border-app-border bg-surface-2/40">
+                <div className="flex items-center justify-between border-b border-app-border px-3 py-2">
+                  <span className="text-xs font-medium text-muted">{t('form.ocrRawText')}</span>
+                  <span className="text-2xs text-muted">
                     {t('form.ocrLines', { n: ocrResult?.lines.length ?? 0 })}
                   </span>
                 </div>
                 <div className="max-h-44 overflow-y-auto px-3 py-2">
                   {ocrResult?.lines.slice(0, 40).map((line, index) => (
                     <div key={`${line.text}-${index}`} className="flex gap-3 py-1 text-xs">
-                      <span className="w-10 shrink-0 text-right text-zinc-700">
+                      <span className="w-10 shrink-0 text-right text-muted">
                         {line.score != null ? `${Math.round(line.score * 100)}%` : '--'}
                       </span>
-                      <span className="text-zinc-400">{line.text}</span>
+                      <span className="text-muted">{line.text}</span>
                     </div>
                   ))}
                 </div>
@@ -525,7 +525,7 @@ export function ItemForm() {
         </Dialog>
 
         {mutations.error && (
-          <div className="rounded-lg bg-red-950/30 border border-red-900 px-4 py-3 text-sm text-red-400">
+          <div className="rounded-lg bg-danger-bg border border-danger-border px-4 py-3 text-sm text-danger">
             {mutations.error}
           </div>
         )}
@@ -556,7 +556,7 @@ export function ItemForm() {
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="font-serif text-sm text-zinc-400 pb-2 border-b border-zinc-800">{children}</h2>
+    <h2 className="font-serif text-sm text-muted pb-2 border-b border-app-border">{children}</h2>
   )
 }
 
@@ -597,7 +597,7 @@ function CandidateRow<T extends string | number>({
         <button
           type="button"
           key={`${candidate.label ?? 'cand'}-${candidate.currency ?? ''}-${candidate.value}`}
-          className="max-w-full truncate rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1 text-2xs text-zinc-400 transition-colors hover:border-accent-muted hover:text-zinc-100"
+          className="max-w-full truncate rounded-md border border-app-border bg-surface-2 px-2 py-1 text-2xs text-muted transition-colors hover:border-accent-muted hover:text-primary"
           title={candidate.source}
           onClick={() => onPick(candidate)}
         >

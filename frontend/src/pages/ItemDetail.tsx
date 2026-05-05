@@ -81,8 +81,8 @@ export function ItemDetail() {
   if (error || !item) {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
-        <p className="font-serif text-zinc-300 text-lg mb-2">{t('detail.notFound')}</p>
-        <p className="text-zinc-600 text-sm mb-6">{error}</p>
+        <p className="font-serif text-secondary text-lg mb-2">{t('detail.notFound')}</p>
+        <p className="text-muted text-sm mb-6">{error}</p>
         <Button variant="outline" onClick={() => navigate('/')}>{t('detail.backHome')}</Button>
       </div>
     )
@@ -167,7 +167,7 @@ export function ItemDetail() {
       <div className="flex items-center justify-between gap-3">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-1.5 text-zinc-500 hover:text-zinc-300 transition-colors text-sm"
+          className="flex items-center gap-1.5 text-muted hover:text-secondary transition-colors text-sm"
         >
           <ArrowLeft className="h-4 w-4" />
           {t('detail.back')}
@@ -208,10 +208,10 @@ export function ItemDetail() {
       <div>
         <div className="flex items-start gap-3 mb-2">
           <div className="flex-1 min-w-0">
-            <h1 className="font-serif text-2xl text-zinc-100 leading-tight">{item.name}</h1>
+            <h1 className="font-serif text-2xl text-primary leading-tight">{item.name}</h1>
           </div>
           {item.is_overdue && (
-            <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-amber-950 border border-amber-900 text-amber-400 text-2xs font-medium shrink-0 mt-1">
+            <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-warn-bg border border-warn-border text-warn text-2xs font-medium shrink-0 mt-1">
               <AlertTriangle className="h-3 w-3" />
               {t('detail.overdue')}
             </span>
@@ -234,44 +234,44 @@ export function ItemDetail() {
         <div className={cn(
           'col-span-2 lg:col-span-1 rounded-xl border p-4',
           isPeripheralOverService
-            ? 'border-amber-500/30 bg-gradient-to-br from-amber-950/30 to-yellow-950/15'
+            ? 'border-warn-border bg-warn-bg'
             : 'border-accent-muted bg-accent-bg',
         )}>
           <p className={cn(
             'text-2xs uppercase tracking-widest mb-2',
-            isPeripheralOverService ? 'text-amber-400/60' : 'text-accent/60',
+            isPeripheralOverService ? 'text-warn/80' : 'text-accent/60',
           )}>{t('detail.totalDaily')}</p>
           <div className="flex items-baseline gap-1">
             <span className={cn(
               'font-mono text-4xl font-bold leading-none',
-              isPeripheralOverService ? 'text-amber-400' : 'text-accent',
+              isPeripheralOverService ? 'text-warn' : 'text-accent',
             )}>
               {formatDailyCost(item.daily_cost)}
             </span>
             <span className={cn(
               'text-sm',
-              isPeripheralOverService ? 'text-amber-400/60' : 'text-accent/60',
+              isPeripheralOverService ? 'text-warn/80' : 'text-accent/60',
             )}>{t('detail.perDay')}</span>
           </div>
         </div>
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-          <p className="text-2xs text-zinc-600 uppercase tracking-widest mb-2">{t('detail.baseDaily')}</p>
+        <div className="rounded-xl border border-app-border bg-surface-2 p-4">
+          <p className="text-2xs text-muted uppercase tracking-widest mb-2">{t('detail.baseDaily')}</p>
           <div className="flex items-baseline gap-1">
-            <span className="font-mono text-xl font-semibold text-zinc-100">
+            <span className="font-mono text-xl font-semibold text-primary">
               {formatDailyCost(item.base_daily_cost)}
             </span>
-            <span className="text-zinc-600 text-xs">{t('detail.perDay')}</span>
+            <span className="text-muted text-xs">{t('detail.perDay')}</span>
           </div>
         </div>
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-          <p className="text-2xs text-zinc-600 uppercase tracking-widest mb-2">{t('detail.expenses')}</p>
-          <p className="font-mono text-xl font-semibold text-zinc-100">{formatCNY(expenseTotal, 0)}</p>
+        <div className="rounded-xl border border-app-border bg-surface-2 p-4">
+          <p className="text-2xs text-muted uppercase tracking-widest mb-2">{t('detail.expenses')}</p>
+          <p className="font-mono text-xl font-semibold text-primary">{formatCNY(expenseTotal, 0)}</p>
         </div>
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-          <p className="text-2xs text-zinc-600 uppercase tracking-widest mb-2">{t('detail.daysOwned')}</p>
+        <div className="rounded-xl border border-app-border bg-surface-2 p-4">
+          <p className="text-2xs text-muted uppercase tracking-widest mb-2">{t('detail.daysOwned')}</p>
           <div className="flex items-baseline gap-1">
-            <span className="font-mono text-xl font-semibold text-zinc-100">{item.days_owned}</span>
-            <span className="text-zinc-500 text-sm">{t('detail.days')}</span>
+            <span className="font-mono text-xl font-semibold text-primary">{item.days_owned}</span>
+            <span className="text-muted text-sm">{t('detail.days')}</span>
           </div>
         </div>
       </div>
@@ -301,11 +301,11 @@ export function ItemDetail() {
       )}
 
       {/* Cost trend chart */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+      <div className="rounded-xl border border-app-border bg-surface-2 p-5">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="font-serif text-sm text-zinc-100">{t('detail.costCurve')}</h2>
-            <p className="text-2xs text-zinc-600 mt-0.5">{t('detail.costCurveHint')}</p>
+            <h2 className="font-serif text-sm text-primary">{t('detail.costCurve')}</h2>
+            <p className="text-2xs text-muted mt-0.5">{t('detail.costCurveHint')}</p>
           </div>
         </div>
         <CostTrendChart
@@ -321,10 +321,10 @@ export function ItemDetail() {
               : undefined
           }
         />
-        <div className="mt-4 rounded-lg bg-zinc-950 border border-zinc-800 p-3">
-          <p className="text-xs text-zinc-500">
+        <div className="mt-4 rounded-lg bg-surface border border-app-border p-3">
+          <p className="text-xs text-muted">
             {t('detail.costForecastPrefix')}{' '}
-            <span className="text-zinc-300 font-medium">365</span>{' '}
+            <span className="text-secondary font-medium">365</span>{' '}
             {t('detail.costForecastMid')}{' '}
             <span className="font-mono text-accent font-semibold">
               {formatDailyCost(
@@ -337,8 +337,8 @@ export function ItemDetail() {
       </div>
 
       {/* Full info */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 space-y-4">
-        <h2 className="font-serif text-sm text-zinc-100">{t('detail.info')}</h2>
+      <div className="rounded-xl border border-app-border bg-surface-2 p-5 space-y-4">
+        <h2 className="font-serif text-sm text-primary">{t('detail.info')}</h2>
         <div className="grid grid-cols-2 gap-x-6 gap-y-4">
           <InfoRow icon={DollarSign} label={t('detail.purchasePrice')} value={formatCNY(item.purchase_price)} />
           <InfoRow icon={DollarSign} label={t('detail.residualValue')} value={formatCNY(item.residual_value)} />
@@ -368,21 +368,21 @@ export function ItemDetail() {
           )}
         </div>
         {item.notes && (
-          <div className="pt-3 border-t border-zinc-800">
+          <div className="pt-3 border-t border-app-border">
             <div className="flex items-start gap-2">
-              <FileText className="h-3.5 w-3.5 text-zinc-600 mt-0.5 shrink-0" />
-              <p className="text-sm text-zinc-400 leading-relaxed">{item.notes}</p>
+              <FileText className="h-3.5 w-3.5 text-muted mt-0.5 shrink-0" />
+              <p className="text-sm text-muted leading-relaxed">{item.notes}</p>
             </div>
           </div>
         )}
       </div>
 
       {/* Later expenses */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 space-y-4">
+      <div className="rounded-xl border border-app-border bg-surface-2 p-5 space-y-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="font-serif text-sm text-zinc-100">{t('detail.laterExpenses')}</h2>
-            <p className="text-2xs text-zinc-600 mt-0.5">{t('detail.laterExpensesHint')}</p>
+            <h2 className="font-serif text-sm text-primary">{t('detail.laterExpenses')}</h2>
+            <p className="text-2xs text-muted mt-0.5">{t('detail.laterExpensesHint')}</p>
           </div>
           <Button variant="outline" size="sm" onClick={() => setExpenseOpen(true)}>
             <PlusCircle className="h-3.5 w-3.5" />
@@ -391,7 +391,7 @@ export function ItemDetail() {
         </div>
 
         {expenses.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-zinc-800 bg-zinc-950/40 p-4 text-sm text-zinc-600">
+          <div className="rounded-lg border border-dashed border-app-border bg-surface/40 p-4 text-sm text-muted">
             {t('detail.noExpenses')}
           </div>
         ) : (
@@ -409,10 +409,10 @@ export function ItemDetail() {
         )}
 
         {expenseTotal > 0 && (
-          <div className="rounded-lg bg-zinc-950 border border-zinc-800 p-3">
-            <p className="text-xs text-zinc-500">
+          <div className="rounded-lg bg-surface border border-app-border p-3">
+            <p className="text-xs text-muted">
               {t('detail.expenseImpactPrefix')}{' '}
-              <span className="font-mono text-zinc-300">
+              <span className="font-mono text-secondary">
                 {formatDailyCost(item.daily_cost - item.base_daily_cost)}
               </span>{' '}
               {t('detail.expenseImpactSuffix')}
@@ -423,7 +423,7 @@ export function ItemDetail() {
 
       {/* Comparison calculator — only for active items */}
       {item.status === 'active' && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+        <div className="rounded-xl border border-app-border bg-surface-2 p-5">
           <ComparisonCalculator item={item} />
         </div>
       )}
@@ -435,7 +435,7 @@ export function ItemDetail() {
             <DialogTitle>{t('retire.title')}</DialogTitle>
           </DialogHeader>
           <DialogBody className="space-y-4">
-            <p className="text-sm text-zinc-400">
+            <p className="text-sm text-muted">
               {t('retire.bodyPrefix')}{item.name}{t('retire.bodyMid')}
             </p>
             <div className="space-y-1.5">
@@ -472,7 +472,7 @@ export function ItemDetail() {
             <DialogTitle>{t('sell.title')}</DialogTitle>
           </DialogHeader>
           <DialogBody className="space-y-4">
-            <p className="text-sm text-zinc-400">
+            <p className="text-sm text-muted">
               {t('sell.bodyPrefix')}{item.name}{t('sell.bodyMid')}
             </p>
             <div className="space-y-1.5">
@@ -487,10 +487,10 @@ export function ItemDetail() {
               />
             </div>
             {soldPrice && !isNaN(parseFloat(soldPrice)) && (
-              <div className="rounded-lg bg-zinc-950 border border-zinc-800 p-3">
-                <p className="text-xs text-zinc-500">
+              <div className="rounded-lg bg-surface border border-app-border p-3">
+                <p className="text-xs text-muted">
                   {t('detail.sellNetLoss')}{' '}
-                  <span className="text-zinc-300 font-mono font-medium">
+                  <span className="text-secondary font-mono font-medium">
                     {formatCNY(item.purchase_price + expenseTotal - parseFloat(soldPrice))}
                   </span>
                   {' · '}
@@ -581,16 +581,16 @@ export function ItemDetail() {
               />
             </div>
 
-            <label className="flex items-start gap-3 rounded-lg border border-zinc-800 bg-zinc-950/60 p-3">
+            <label className="flex items-start gap-3 rounded-lg border border-app-border bg-surface/60 p-3">
               <input
                 type="checkbox"
                 checked={countsInCost}
                 onChange={e => setCountsInCost(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-zinc-700 bg-zinc-900 accent-accent"
+                className="mt-0.5 h-4 w-4 rounded border-border-strong bg-surface-2 accent-accent"
               />
               <span>
-                <span className="block text-sm text-zinc-300">{t('expenseDialog.countInCost')}</span>
-                <span className="block text-xs text-zinc-600 mt-0.5">
+                <span className="block text-sm text-secondary">{t('expenseDialog.countInCost')}</span>
+                <span className="block text-xs text-muted mt-0.5">
                   {t('expenseDialog.countInCostHint')}
                 </span>
               </span>
@@ -630,7 +630,7 @@ export function ItemDetail() {
             <DialogTitle>{t('deleteDialog.title')}</DialogTitle>
           </DialogHeader>
           <DialogBody>
-            <p className="text-sm text-zinc-400">
+            <p className="text-sm text-muted">
               {t('deleteDialog.bodyPrefix')}{item.name}{t('deleteDialog.bodyMid')}
             </p>
           </DialogBody>
@@ -672,16 +672,16 @@ function BenchmarkPanel({
   const isFlat = signals.drop30 < 0.2
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 space-y-4">
+    <div className="rounded-xl border border-app-border bg-surface-2 p-5 space-y-4">
       <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:gap-4">
         <div>
-          <h2 className="font-serif text-sm text-zinc-100">
+          <h2 className="font-serif text-sm text-primary">
             {t('benchmark.title')} / {t('signals.title')}
           </h2>
-          <p className="mt-0.5 text-2xs text-zinc-600">{t('benchmark.subtitle')}</p>
+          <p className="mt-0.5 text-2xs text-muted">{t('benchmark.subtitle')}</p>
         </div>
         <div className="flex max-w-full flex-wrap items-center gap-2">
-          <span className="max-w-full rounded-full border border-zinc-700 px-2 py-1 text-2xs text-zinc-400">
+          <span className="max-w-full rounded-full border border-border-strong px-2 py-1 text-2xs text-muted">
             {t('benchmark.range', {
               profile: profileLabel,
               min: formatDailyCost(benchmark.minDaily),
@@ -750,11 +750,11 @@ function BenchmarkUnmatchedPanel({
   t: Translate
 }) {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+    <div className="rounded-xl border border-app-border bg-surface-2 p-5">
       <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
         <div>
-          <h2 className="font-serif text-sm text-zinc-100">{t('benchmark.unmatchedTitle')}</h2>
-          <p className="mt-0.5 text-2xs text-zinc-600">{t('benchmark.unmatchedText')}</p>
+          <h2 className="font-serif text-sm text-primary">{t('benchmark.unmatchedTitle')}</h2>
+          <p className="mt-0.5 text-2xs text-muted">{t('benchmark.unmatchedText')}</p>
         </div>
         <Button variant="outline" size="sm" onClick={onEditKeywords}>
           <Settings2 className="h-3.5 w-3.5" />
@@ -784,16 +784,16 @@ function PeripheralPanel({
   const peripheralProfile = benchmark.profile as 'gamepad' | 'mouse' | 'keyboard'
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 space-y-4">
+    <div className="rounded-xl border border-app-border bg-surface-2 p-5 space-y-4">
       <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:gap-4">
         <div>
-          <h2 className="font-serif text-sm text-zinc-100">
+          <h2 className="font-serif text-sm text-primary">
             {t('peripheral.title')}
           </h2>
-          <p className="mt-0.5 text-2xs text-zinc-600">{t('peripheral.subtitle')}</p>
+          <p className="mt-0.5 text-2xs text-muted">{t('peripheral.subtitle')}</p>
         </div>
         <div className="flex max-w-full flex-wrap items-center gap-2">
-          <span className="max-w-full rounded-full border border-zinc-700 px-2 py-1 text-2xs text-zinc-400">
+          <span className="max-w-full rounded-full border border-border-strong px-2 py-1 text-2xs text-muted">
             {t('benchmark.range', {
               profile: label,
               min: formatDailyCost(benchmark.minDaily),
@@ -811,20 +811,20 @@ function PeripheralPanel({
       <div className={cn(
         'rounded-lg border p-4',
         isOverService
-          ? 'border-amber-500/40 bg-gradient-to-r from-amber-950/30 to-amber-900/10'
+          ? 'border-warn-border bg-warn-bg'
           : expectedDays
-          ? 'border-zinc-800 bg-zinc-950/40'
-          : 'border-zinc-800 border-dashed bg-zinc-950/20',
+          ? 'border-app-border bg-surface/40'
+          : 'border-app-border border-dashed bg-surface/20',
       )}>
         <div className="flex items-center justify-between gap-3 mb-2">
           <p className={cn(
             'text-2xs font-medium uppercase tracking-widest',
-            isOverService ? 'text-amber-400' : 'text-zinc-600',
+            isOverService ? 'text-warn' : 'text-muted',
           )}>
             {t('peripheral.lifespanProgress')}
           </p>
           {isOverService && overServiceDays != null && (
-            <span className="rounded-full bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-2xs font-semibold text-amber-400 animate-pulse">
+            <span className="rounded-full bg-warn-bg-hover border border-warn-border px-2 py-0.5 text-2xs font-semibold text-warn animate-pulse">
               {t('peripheral.bonusDays', { days: overServiceDays })}
             </span>
           )}
@@ -833,12 +833,12 @@ function PeripheralPanel({
         {expectedDays != null && progress != null ? (
           <>
             {/* Progress bar */}
-            <div className="h-2 w-full bg-zinc-800 rounded-full overflow-hidden mb-2">
+            <div className="h-2 w-full bg-surface-3 rounded-full overflow-hidden mb-2">
               <div
                 className={cn(
                   'h-full rounded-full transition-all duration-700',
                   isOverService
-                    ? 'bg-gradient-to-r from-amber-500 to-yellow-400'
+                    ? 'bg-warn'
                     : 'bg-accent/60',
                 )}
                 style={{ width: `${Math.min(100, progress * 100).toFixed(1)}%` }}
@@ -846,7 +846,7 @@ function PeripheralPanel({
             </div>
             <p className={cn(
               'text-sm',
-              isOverService ? 'text-amber-300 font-medium' : 'text-zinc-400',
+              isOverService ? 'text-warn font-medium' : 'text-muted',
             )}>
               {isOverService
                 ? t('peripheral.overServiceDetail', { days: overServiceDays ?? 0 })
@@ -857,8 +857,8 @@ function PeripheralPanel({
           </>
         ) : (
           <>
-            <p className="text-sm text-zinc-500">{t('peripheral.noExpectedLife')}</p>
-            <p className="text-2xs text-zinc-700 mt-1">{t('peripheral.noExpectedLifeHint')}</p>
+            <p className="text-sm text-muted">{t('peripheral.noExpectedLife')}</p>
+            <p className="text-2xs text-muted mt-1">{t('peripheral.noExpectedLifeHint')}</p>
           </>
         )}
       </div>
@@ -899,26 +899,26 @@ function PeripheralPanel({
       </div>
 
       {/* Physical fault red lines */}
-      <div className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-4 space-y-3">
+      <div className="rounded-lg border border-app-border bg-surface/40 p-4 space-y-3">
         <div>
-          <p className="text-2xs font-medium uppercase tracking-widest text-red-400/80">
+          <p className="text-2xs font-medium uppercase tracking-widest text-danger/80">
             {t('peripheral.faultTitle')}
           </p>
-          <p className="text-2xs text-zinc-600 mt-0.5">
+          <p className="text-2xs text-muted mt-0.5">
             {t('peripheral.faultSubtitle')}
           </p>
         </div>
 
         {/* Default replacement hint */}
-        <div className="rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-2">
-          <p className="text-xs text-zinc-500 leading-relaxed">
+        <div className="rounded-md border border-app-border bg-surface-2/60 px-3 py-2">
+          <p className="text-xs text-muted leading-relaxed">
             {t(`peripheral.replaceHint.${peripheralProfile}` as const)}
           </p>
         </div>
 
         {physicalFaults.length > 0 ? (
           <div className="space-y-2">
-            <p className="text-xs text-red-400 font-medium">
+            <p className="text-xs text-danger font-medium">
               ⚠ {t('peripheral.faultDetected')}
             </p>
             {physicalFaults.map((fault, idx) => (
@@ -926,7 +926,7 @@ function PeripheralPanel({
             ))}
           </div>
         ) : (
-          <p className="text-xs text-zinc-600">
+          <p className="text-xs text-muted">
             ✓ {t('peripheral.faultNone')}
           </p>
         )}
@@ -943,17 +943,17 @@ function FaultSignalRow({
   t: Translate
 }) {
   return (
-    <div className="flex items-start gap-2 rounded-md border border-red-900/40 bg-red-950/15 px-3 py-2">
-      <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-red-400 shrink-0" />
+    <div className="flex items-start gap-2 rounded-md border border-danger-border bg-danger-bg px-3 py-2">
+      <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-danger shrink-0" />
       <div className="min-w-0">
-        <span className="text-xs text-red-300 font-medium">{fault.keyword}</span>
-        <span className="text-2xs text-zinc-600 ml-2">
+        <span className="text-xs text-danger font-medium">{fault.keyword}</span>
+        <span className="text-2xs text-muted ml-2">
           {fault.source === 'expense'
             ? t('peripheral.faultSource.expense')
             : t('peripheral.faultSource.notes')}
         </span>
         {fault.detail && (
-          <p className="text-2xs text-zinc-500 mt-0.5 truncate">{fault.detail}</p>
+          <p className="text-2xs text-muted mt-0.5 truncate">{fault.detail}</p>
         )}
       </div>
     </div>
@@ -984,11 +984,11 @@ function BenchmarkKeywordDialog({
           <DialogTitle>{t('benchmark.keywordTitle')}</DialogTitle>
         </DialogHeader>
         <DialogBody className="space-y-4">
-          <p className="text-sm text-zinc-500">{t('benchmark.keywordHint')}</p>
+          <p className="text-sm text-muted">{t('benchmark.keywordHint')}</p>
 
           {/* Main device profiles */}
           <div className="space-y-3">
-            <p className="text-xs font-medium text-zinc-400 uppercase tracking-widest">
+            <p className="text-xs font-medium text-muted uppercase tracking-widest">
               {t('benchmark.keywordGroupMain')}
             </p>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -1011,7 +1011,7 @@ function BenchmarkKeywordDialog({
 
           {/* Peripheral profiles */}
           <div className="space-y-3">
-            <p className="text-xs font-medium text-amber-500/80 uppercase tracking-widest">
+            <p className="text-xs font-medium text-warn/80 uppercase tracking-widest">
               {t('benchmark.keywordGroupPeripheral')}
             </p>
             <div className="grid gap-4 sm:grid-cols-3">
@@ -1032,8 +1032,8 @@ function BenchmarkKeywordDialog({
             </div>
           </div>
 
-          <div className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-3">
-            <p className="text-xs text-zinc-600">{t('benchmark.keywordHelp')}</p>
+          <div className="rounded-lg border border-app-border bg-surface/50 p-3">
+            <p className="text-xs text-muted">{t('benchmark.keywordHelp')}</p>
           </div>
         </DialogBody>
         <DialogFooter className="justify-between">
@@ -1068,25 +1068,25 @@ function SignalTile({
   return (
     <div className={cn(
       'rounded-lg border px-3 py-3',
-      tone === 'good' && 'border-emerald-900 bg-emerald-950/20',
-      tone === 'warn' && 'border-amber-900 bg-amber-950/20',
-      tone === 'muted' && 'border-zinc-800 bg-zinc-950/40',
-      tone === 'gold' && 'border-amber-500/30 bg-gradient-to-br from-amber-950/25 to-yellow-950/15',
+      tone === 'good' && 'border-success-border bg-success-bg',
+      tone === 'warn' && 'border-warn-border bg-warn-bg',
+      tone === 'muted' && 'border-app-border bg-surface/40',
+      tone === 'gold' && 'border-warn-border bg-warn-bg',
     )}>
       <p className={cn(
         'text-2xs font-medium uppercase tracking-widest',
-        tone === 'good' && 'text-emerald-500',
-        tone === 'warn' && 'text-amber-500',
-        tone === 'muted' && 'text-zinc-600',
-        tone === 'gold' && 'text-amber-400',
+        tone === 'good' && 'text-success',
+        tone === 'warn' && 'text-warn',
+        tone === 'muted' && 'text-muted',
+        tone === 'gold' && 'text-warn',
       )}>
         {title}
       </p>
       <p className={cn(
         'mt-1 text-sm',
-        tone === 'gold' ? 'text-amber-200' : 'text-zinc-200',
+        tone === 'gold' ? 'text-warn' : 'text-secondary',
       )}>{value}</p>
-      {detail && <p className="mt-1 text-2xs text-zinc-600">{detail}</p>}
+      {detail && <p className="mt-1 text-2xs text-muted">{detail}</p>}
     </div>
   )
 }
@@ -1135,10 +1135,10 @@ function InfoRow({
   return (
     <div className={cn(colSpan && 'col-span-2')}>
       <div className="flex items-center gap-1.5 mb-0.5">
-        <Icon className="h-3 w-3 text-zinc-600" />
-        <span className="text-2xs text-zinc-600 uppercase tracking-widest">{label}</span>
+        <Icon className="h-3 w-3 text-muted" />
+        <span className="text-2xs text-muted uppercase tracking-widest">{label}</span>
       </div>
-      <p className="text-sm text-zinc-300">{value}</p>
+      <p className="text-sm text-secondary">{value}</p>
     </div>
   )
 }
@@ -1158,21 +1158,21 @@ function ExpenseRow({
   const Icon = expenseIcon(expense.type)
 
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-zinc-800 bg-zinc-950/50 px-3 py-3">
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-app-border bg-surface/50 px-3 py-3">
       <div className="flex items-start gap-3 min-w-0">
-        <div className="mt-0.5 h-8 w-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center shrink-0">
-          <Icon className="h-4 w-4 text-zinc-500" />
+        <div className="mt-0.5 h-8 w-8 rounded-lg bg-surface-2 border border-app-border flex items-center justify-center shrink-0">
+          <Icon className="h-4 w-4 text-muted" />
         </div>
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm text-zinc-200">{expenseTypeLabel}</span>
+            <span className="text-sm text-secondary">{expenseTypeLabel}</span>
             {!expense.counts_in_cost && (
-              <span className="rounded-full border border-zinc-800 px-2 py-0.5 text-2xs text-zinc-600">
+              <span className="rounded-full border border-app-border px-2 py-0.5 text-2xs text-muted">
                 {t('detail.recordOnly')}
               </span>
             )}
           </div>
-          <p className="mt-0.5 text-xs text-zinc-600">
+          <p className="mt-0.5 text-xs text-muted">
             {formatDate(expense.expense_date)}
             {expense.description ? ` · ${expense.description}` : ''}
           </p>
@@ -1182,7 +1182,7 @@ function ExpenseRow({
       <div className="flex items-center gap-2 shrink-0">
         <span className={cn(
           'font-mono text-sm font-semibold',
-          expense.counts_in_cost ? 'text-zinc-100' : 'text-zinc-600',
+          expense.counts_in_cost ? 'text-primary' : 'text-muted',
         )}>
           {formatCNY(expense.amount, 0)}
         </span>
@@ -1211,17 +1211,17 @@ function expenseIcon(type: ExpenseType) {
 function LoadingSkeleton() {
   return (
     <div className="space-y-6 animate-pulse">
-      <div className="h-4 w-16 bg-zinc-800 rounded" />
+      <div className="h-4 w-16 bg-surface-3 rounded" />
       <div className="space-y-2">
-        <div className="h-7 w-2/3 bg-zinc-800 rounded" />
-        <div className="h-4 w-1/4 bg-zinc-800 rounded" />
+        <div className="h-7 w-2/3 bg-surface-3 rounded" />
+        <div className="h-4 w-1/4 bg-surface-3 rounded" />
       </div>
       <div className="grid grid-cols-3 gap-3">
-        <div className="col-span-3 sm:col-span-1 h-24 bg-zinc-900 rounded-xl border border-zinc-800" />
-        <div className="h-24 bg-zinc-900 rounded-xl border border-zinc-800" />
-        <div className="h-24 bg-zinc-900 rounded-xl border border-zinc-800" />
+        <div className="col-span-3 sm:col-span-1 h-24 bg-surface-2 rounded-xl border border-app-border" />
+        <div className="h-24 bg-surface-2 rounded-xl border border-app-border" />
+        <div className="h-24 bg-surface-2 rounded-xl border border-app-border" />
       </div>
-      <div className="h-64 bg-zinc-900 rounded-xl border border-zinc-800" />
+      <div className="h-64 bg-surface-2 rounded-xl border border-app-border" />
     </div>
   )
 }

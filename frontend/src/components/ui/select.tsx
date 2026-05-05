@@ -15,8 +15,8 @@ export const SelectTrigger = React.forwardRef<
     ref={ref}
     className={cn(
       'flex h-10 w-full items-center justify-between rounded-lg',
-      'bg-zinc-800/60 border border-zinc-700 px-3',
-      'text-sm text-zinc-100',
+      'bg-surface-3/60 border border-border-strong px-3',
+      'text-sm text-primary',
       'focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/60',
       'disabled:opacity-50 disabled:pointer-events-none',
       'transition-colors duration-100',
@@ -27,7 +27,7 @@ export const SelectTrigger = React.forwardRef<
   >
     {children}
     <SelectPrimitive.Icon asChild>
-      <ChevronDown className="h-4 w-4 text-zinc-500 shrink-0" />
+      <ChevronDown className="h-4 w-4 text-muted shrink-0" />
     </SelectPrimitive.Icon>
   </SelectPrimitive.Trigger>
 ))
@@ -42,7 +42,7 @@ export const SelectContent = React.forwardRef<
       ref={ref}
       className={cn(
         'relative z-50 min-w-[8rem] overflow-hidden rounded-xl',
-        'border border-zinc-700 bg-zinc-900 shadow-xl',
+        'border border-border-strong bg-surface-2 shadow-xl',
         'animate-fade-in',
         position === 'popper' && 'translate-y-1',
         className,
@@ -71,8 +71,8 @@ export const SelectItem = React.forwardRef<
     ref={ref}
     className={cn(
       'relative flex cursor-pointer select-none items-center rounded-lg px-3 py-2 text-sm',
-      'text-zinc-300 outline-none',
-      'data-[highlighted]:bg-zinc-800 data-[highlighted]:text-zinc-100',
+      'text-secondary outline-none',
+      'data-[highlighted]:bg-surface-3 data-[highlighted]:text-primary',
       'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
       className,
     )}
@@ -94,7 +94,7 @@ export const SelectLabel = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SelectPrimitive.Label
     ref={ref}
-    className={cn('px-3 py-1.5 text-xs font-medium text-zinc-500', className)}
+    className={cn('px-3 py-1.5 text-xs font-medium text-muted', className)}
     {...props}
   />
 ))

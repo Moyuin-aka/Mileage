@@ -7,13 +7,13 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 }
 
 const variants: Record<NonNullable<BadgeProps['variant']>, string> = {
-  default: 'bg-zinc-800 text-zinc-400 border border-zinc-700',
+  default: 'bg-surface-3 text-muted border border-border-strong',
   accent:  'bg-accent-bg text-accent border border-accent-muted',
-  warn:    'bg-warn-bg text-warn border border-amber-800',
-  muted:   'bg-zinc-900 text-zinc-500 border border-zinc-800',
-  active:  'bg-emerald-950 text-emerald-400 border border-emerald-900',
-  retired: 'bg-zinc-800 text-zinc-500 border border-zinc-700',
-  sold:    'bg-blue-950 text-blue-400 border border-blue-900',
+  warn:    'bg-warn-bg text-warn border border-warn-border',
+  muted:   'bg-surface-2 text-muted border border-app-border',
+  active:  'bg-success-bg text-success border border-success-border',
+  retired: 'bg-surface-3 text-muted border border-border-strong',
+  sold:    'bg-info-bg text-info border border-info-border',
 }
 
 export function Badge({ variant = 'default', className, ...props }: BadgeProps) {

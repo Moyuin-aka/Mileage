@@ -16,13 +16,13 @@ const ALL_CATEGORIES: ItemCategory[] = [
 
 function Skeleton() {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 animate-pulse">
-      <div className="h-4 w-1/2 bg-zinc-800 rounded mb-3" />
-      <div className="h-3 w-1/4 bg-zinc-800 rounded mb-6" />
-      <div className="h-8 w-1/3 bg-zinc-800 rounded mb-4" />
+    <div className="rounded-xl border border-app-border bg-surface-2 p-5 animate-pulse">
+      <div className="h-4 w-1/2 bg-surface-3 rounded mb-3" />
+      <div className="h-3 w-1/4 bg-surface-3 rounded mb-6" />
+      <div className="h-8 w-1/3 bg-surface-3 rounded mb-4" />
       <div className="flex justify-between">
-        <div className="h-3 w-1/4 bg-zinc-800 rounded" />
-        <div className="h-3 w-1/4 bg-zinc-800 rounded" />
+        <div className="h-3 w-1/4 bg-surface-3 rounded" />
+        <div className="h-3 w-1/4 bg-surface-3 rounded" />
       </div>
     </div>
   )
@@ -72,8 +72,8 @@ export function Dashboard() {
       {/* Page header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="font-serif text-2xl text-zinc-100">{t('dashboard.title')}</h1>
-          <p className="text-sm text-zinc-600 mt-0.5">{t('dashboard.subtitle')}</p>
+          <h1 className="font-serif text-2xl text-primary">{t('dashboard.title')}</h1>
+          <p className="text-sm text-muted mt-0.5">{t('dashboard.subtitle')}</p>
         </div>
         <Button
           variant="accent"
@@ -90,14 +90,14 @@ export function Dashboard() {
       {loading ? (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 animate-pulse">
-              <div className="h-3 w-2/3 bg-zinc-800 rounded mb-4" />
-              <div className="h-7 w-1/2 bg-zinc-800 rounded" />
+            <div key={i} className="rounded-xl border border-app-border bg-surface-2 p-4 animate-pulse">
+              <div className="h-3 w-2/3 bg-surface-3 rounded mb-4" />
+              <div className="h-7 w-1/2 bg-surface-3 rounded" />
             </div>
           ))}
         </div>
       ) : error ? (
-        <div className="rounded-xl border border-red-900/50 bg-red-950/20 p-4 text-red-400 text-sm">
+        <div className="rounded-xl border border-danger-border bg-danger-bg p-4 text-danger text-sm">
           {error}
         </div>
       ) : stats ? (
@@ -108,7 +108,7 @@ export function Dashboard() {
       <div className="space-y-3">
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-600 pointer-events-none" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
           <Input
             placeholder={t('dashboard.search')}
             value={query}
@@ -124,8 +124,8 @@ export function Dashboard() {
             className={cn(
               'shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
               activeCategory === 'all'
-                ? 'bg-zinc-700 border-zinc-600 text-zinc-100'
-                : 'border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300',
+                ? 'bg-surface-hover border-border-strong text-primary'
+                : 'border-app-border text-muted hover:border-border-strong hover:text-secondary',
             )}
           >
             {t('dashboard.all')}
@@ -137,8 +137,8 @@ export function Dashboard() {
               className={cn(
                 'shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
                 activeCategory === cat
-                  ? 'bg-zinc-700 border-zinc-600 text-zinc-100'
-                  : 'border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300',
+                  ? 'bg-surface-hover border-border-strong text-primary'
+                  : 'border-app-border text-muted hover:border-border-strong hover:text-secondary',
               )}
             >
               {categoryLabels[cat]}
@@ -148,7 +148,7 @@ export function Dashboard() {
 
         {/* Sort */}
         <div className="flex items-center gap-2">
-          <SlidersHorizontal className="h-3.5 w-3.5 text-zinc-600 shrink-0" />
+          <SlidersHorizontal className="h-3.5 w-3.5 text-muted shrink-0" />
           <div className="flex gap-1.5">
             {SORT_OPTIONS.map(opt => (
               <button
@@ -157,8 +157,8 @@ export function Dashboard() {
                 className={cn(
                   'px-3 py-1 rounded-md text-xs transition-colors',
                   sortKey === opt.key
-                    ? 'bg-zinc-800 text-zinc-100'
-                    : 'text-zinc-600 hover:text-zinc-400',
+                    ? 'bg-surface-3 text-primary'
+                    : 'text-muted hover:text-secondary',
                 )}
               >
                 {opt.label}
@@ -195,13 +195,13 @@ function EmptyState({ query, onAdd }: { query: string; onAdd: () => void }) {
       </div>
       {query ? (
         <>
-          <p className="font-serif text-zinc-300 text-lg mb-1">{t('dashboard.emptyNoMatch')}</p>
-          <p className="text-zinc-600 text-sm">{t('dashboard.emptyNoMatchHint')}</p>
+          <p className="font-serif text-secondary text-lg mb-1">{t('dashboard.emptyNoMatch')}</p>
+          <p className="text-muted text-sm">{t('dashboard.emptyNoMatchHint')}</p>
         </>
       ) : (
         <>
-          <p className="font-serif text-zinc-300 text-lg mb-1">{t('dashboard.emptyNoItems')}</p>
-          <p className="text-zinc-600 text-sm mb-6">{t('dashboard.emptyNoItemsHint')}</p>
+          <p className="font-serif text-secondary text-lg mb-1">{t('dashboard.emptyNoItems')}</p>
+          <p className="text-muted text-sm mb-6">{t('dashboard.emptyNoItemsHint')}</p>
           <Button variant="accent" onClick={onAdd}>
             <PlusCircle className="h-4 w-4" />
             {t('dashboard.addItem')}
