@@ -1,6 +1,6 @@
 [package]
 name = "mileage"
-version = "0.3.0"
+version = "0.3.2"
 description = "Mileage desktop client"
 authors = ["Mileage contributors"]
 edition = "2021"
