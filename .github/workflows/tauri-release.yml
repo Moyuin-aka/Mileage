@@ -18,18 +18,17 @@ concurrency:
 env:
   NODE_VERSION: 22
   CARGO_TERM_COLOR: always
-  RELEASE_TAG: mileage-v__VERSION__
-  RELEASE_NAME: Mileage v__VERSION__
   RELEASE_BODY: |
     Mileage desktop and Android client builds.
 
     Desktop clients connect to your Mileage service URL and access password.
-    Android APKs are debug-signed CI artifacts intended for sideload testing.
+    Android APKs are release builds intended for sideload testing.
 
 jobs:
   desktop:
     name: Desktop ${{ matrix.name }}
     runs-on: ${{ matrix.platform }}
+
     strategy:
       fail-fast: false
       matrix:
@@ -38,10 +37,12 @@ jobs:
             platform: macos-latest
             rust-targets: aarch64-apple-darwin
             args: --target aarch64-apple-darwin --bundles app,dmg
+
           - name: macOS x64
             platform: macos-latest
             rust-targets: x86_64-apple-darwin
             args: --target x86_64-apple-darwin --bundles app,dmg
+
           - name: Windows x64
             platform: windows-latest
             rust-targets: ''
@@ -57,6 +58,24 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+
+      - name: Resolve release metadata
+        id: release_meta
+        shell: bash
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            TAG="${{ github.ref_name }}"
+          else
+            VERSION="$(node -p "require('./frontend/package.json').version")"
+            TAG="mileage-v${VERSION}"
+          fi
+
+          VERSION="${TAG#v}"
+          VERSION="${VERSION#app-v}"
+          VERSION="${VERSION#mileage-v}"
+
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "name=Mileage v${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -81,8 +100,8 @@ jobs:
         with:
           projectPath: frontend
           tauriScript: npm run tauri
-          tagName: ${{ github.ref_type == 'tag' && github.ref_name || env.RELEASE_TAG }}
-          releaseName: ${{ env.RELEASE_NAME }}
+          tagName: ${{ steps.release_meta.outputs.tag }}
+          releaseName: ${{ steps.release_meta.outputs.name }}
           releaseBody: ${{ env.RELEASE_BODY }}
           releaseDraft: false
           prerelease: false
@@ -91,7 +110,7 @@ jobs:
           args: ${{ matrix.args }}
 
   android:
-    name: Android APK
+    name: Android APK arm64
     runs-on: ubuntu-latest
 
     steps:
@@ -104,6 +123,24 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+
+      - name: Resolve release metadata
+        id: release_meta
+        shell: bash
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            TAG="${{ github.ref_name }}"
+          else
+            VERSION="$(node -p "require('./frontend/package.json').version")"
+            TAG="mileage-v${VERSION}"
+          fi
+
+          VERSION="${TAG#v}"
+          VERSION="${VERSION#app-v}"
+          VERSION="${VERSION#mileage-v}"
+
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "name=Mileage v${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -131,10 +168,10 @@ jobs:
           echo "NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
 
-      - name: Set up Rust Android targets
+      - name: Set up Rust Android target
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+          targets: aarch64-linux-android
 
       - name: Cache Rust artifacts
         uses: swatinem/rust-cache@v2
@@ -153,34 +190,45 @@ jobs:
             npm run tauri -- android init
           fi
 
-      - name: Build Android APKs
+      - name: Set up Android signing
+        working-directory: frontend
+        shell: bash
+        run: |
+          test -n "${{ secrets.ANDROID_KEY_BASE64 }}" || (echo "Missing ANDROID_KEY_BASE64 secret" && exit 1)
+          test -n "${{ secrets.ANDROID_KEY_ALIAS }}" || (echo "Missing ANDROID_KEY_ALIAS secret" && exit 1)
+          test -n "${{ secrets.ANDROID_KEY_PASSWORD }}" || (echo "Missing ANDROID_KEY_PASSWORD secret" && exit 1)
+
+          mkdir -p src-tauri/gen/android
+
+          echo "keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}" > src-tauri/gen/android/keystore.properties
+          echo "password=${{ secrets.ANDROID_KEY_PASSWORD }}" >> src-tauri/gen/android/keystore.properties
+
+          echo "${{ secrets.ANDROID_KEY_BASE64 }}" | base64 -d > "$RUNNER_TEMP/mileage-upload-keystore.jks"
+          echo "storeFile=$RUNNER_TEMP/mileage-upload-keystore.jks" >> src-tauri/gen/android/keystore.properties
+
+      - name: Build Android arm64 release APK
         working-directory: frontend
         shell: bash
         env:
           NDK_HOME: ${{ env.NDK_HOME }}
           ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
-        run: npm run tauri -- android build --debug --apk --split-per-abi
+        run: npm run tauri -- android build --apk --target aarch64
 
-      - name: Upload Android APK workflow artifacts
+      - name: Upload Android APK workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mileage-android-apks
-          path: |
-            frontend/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
-            frontend/src-tauri/gen/android/app/build/outputs/**/*.apk
+          name: mileage-android-arm64-apk
+          path: frontend/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
           if-no-files-found: error
 
-      - name: Upload Android APKs to GitHub Release
+      - name: Upload Android APK to GitHub Release
         uses: softprops/action-gh-release@v2
-        if: github.ref_type == 'tag'
         with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ env.RELEASE_NAME }}
+          tag_name: ${{ steps.release_meta.outputs.tag }}
+          name: ${{ steps.release_meta.outputs.name }}
           body: ${{ env.RELEASE_BODY }}
           draft: false
           prerelease: false
-          files: |
-            frontend/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
-            frontend/src-tauri/gen/android/app/build/outputs/**/*.apk
+          files: frontend/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
