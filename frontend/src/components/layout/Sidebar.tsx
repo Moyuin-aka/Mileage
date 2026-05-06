@@ -8,13 +8,13 @@ import {
   Moon,
   PlusCircle,
   Sun,
-  TrendingDown,
 } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { logout } from '@/lib/auth'
 import { FxConverterDialog } from '@/components/fx/FxConverterDialog'
+import { BrandMark } from '@/components/layout/BrandMark'
 import { useLanguage } from '@/i18n'
 import { useTheme } from '@/theme'
 
@@ -33,9 +33,7 @@ export function Sidebar() {
     <div className="flex flex-col h-full border-r border-app-border bg-surface px-4 py-6">
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-2 mb-8">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-bg border border-accent-muted">
-          <TrendingDown className="h-4 w-4 text-accent" />
-        </div>
+        <BrandMark className="h-8 w-8 shadow-sm ring-1 ring-accent-muted" />
         <div>
           <p className="font-serif text-base font-semibold text-primary leading-none">Mileage</p>
           <p className="text-2xs text-muted mt-0.5">{t('app.subtitle')}</p>

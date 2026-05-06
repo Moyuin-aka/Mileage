@@ -7,6 +7,10 @@ const zh = {
   'app.subtitle': '资产成本追踪',
 
   // Login
+  'login.remoteUrl': '服务地址',
+  'login.remotePlaceholder': 'https://mileage.example.com',
+  'login.remoteHint': '填写你的 Mileage 服务地址，例如 https://mileage.example.com。',
+  'login.remoteError': '服务地址无效',
   'login.passwordLabel': '专属密码',
   'login.passwordField': '密码',
   'login.passwordPlaceholder': '输入密码',
@@ -393,6 +397,10 @@ const en: Record<TranslationKey, string> = {
   'app.subtitle': 'Asset Cost Tracker',
 
   // Login
+  'login.remoteUrl': 'Server URL',
+  'login.remotePlaceholder': 'https://mileage.example.com',
+  'login.remoteHint': 'Enter your Mileage server URL, for example https://mileage.example.com.',
+  'login.remoteError': 'Invalid server URL',
   'login.passwordLabel': 'Access Password',
   'login.passwordField': 'Password',
   'login.passwordPlaceholder': 'Enter password',

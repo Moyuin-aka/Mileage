@@ -1,13 +1,22 @@
 <div align="center">
+  <img src="frontend/public/favicon.svg" alt="Mileage icon" width="84" height="84">
   <h1>Mileage</h1>
-  <p><strong>Self-hosted asset cost tracker</strong></p>
-  <p>Turn purchase price, repairs, residual value, and holding time into a real daily cost.</p>
+  <p><strong>Self-hosted asset cost tracker for real daily ownership cost.</strong></p>
 
   <p>
     <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-AGPL--3.0-blue.svg"></a>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.2.0-44cc7a.svg">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.3.0-44cc7a.svg">
     <img alt="Docker" src="https://img.shields.io/badge/docker-GHCR-2496ED.svg?logo=docker&logoColor=white">
     <img alt="Self hosted" src="https://img.shields.io/badge/self--hosted-Docker%20Compose-111827.svg">
+  </p>
+  <p>
+    <img alt="React" src="https://img.shields.io/badge/React-20232A.svg?logo=react&logoColor=61DAFB">
+    <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-3178C6.svg?logo=typescript&logoColor=white">
+    <img alt="Vite" src="https://img.shields.io/badge/Vite-646CFF.svg?logo=vite&logoColor=white">
+    <img alt="Tailwind CSS" src="https://img.shields.io/badge/Tailwind_CSS-06B6D4.svg?logo=tailwindcss&logoColor=white">
+    <img alt="Hono" src="https://img.shields.io/badge/Hono-E36002.svg?logo=hono&logoColor=white">
+    <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-4169E1.svg?logo=postgresql&logoColor=white">
+    <img alt="Tauri" src="https://img.shields.io/badge/Tauri-24C8DB.svg?logo=tauri&logoColor=white">
   </p>
 
   <img src="docs/page.png" alt="Mileage dashboard" width="100%">
@@ -15,123 +24,162 @@
 
 [中文文档](README.zh.md)
 
-## Why
+## Deploy First
 
-Most expensive things aren't one-time purchases. You replace a phone screen, swap a laptop battery, get an earbud repaired, and eventually resell it. Mileage tracks how much an item has *actually* cost across its entire ownership period.
+Mileage is distributed as pre-built Docker images and a release Compose file.
+It is meant to run on your own server, NAS, VPS, or homelab box.
 
-It helps answer questions like:
+Requirements:
 
-- What is this item costing me per day, on average?
-- Is it worth repairing, or should I upgrade?
-- Should follow-up expenses count toward the total cost?
-- Which assets have outlived their expected lifespan?
+- Docker
+- Docker Compose
+- A stable URL or IP address you can open from your browser or client app
 
-## Features
-
-- Track electronics, appliances, furniture, vehicles, and other big-ticket items
-- Record purchase price, date, channel, notes, and estimated residual value
-- Three statuses: active, retired, sold
-- Log follow-up expenses: repairs, battery replacement, maintenance, accessories, warranty
-- Choose per expense whether it counts toward total cost of ownership
-- OCR from order/receipt screenshots — review extracted fields before applying to the form
-- Auto-calculated daily cost, annual cost, total invested, and archive stats
-- Single password login — designed for personal self-hosting
-- One-command deploy with Docker Compose
-- English / Chinese UI toggle
-
-## Quick Start
-
-You need a machine with Docker and Docker Compose installed:
+Create a directory and download the release files:
 
 ```bash
+mkdir mileage && cd mileage
 curl -fsSLO https://raw.githubusercontent.com/Moyuin-aka/Mileage/main/compose.release.yml
 curl -fsSLO https://raw.githubusercontent.com/Moyuin-aka/Mileage/main/.env.example
 cp .env.example .env
 ```
 
-Edit `.env` and set at minimum:
+Edit `.env`:
 
 ```bash
-APP_PASSWORD=your_login_password
-API_TOKEN=a_long_random_secret
-POSTGRES_PASSWORD=a_long_random_db_password
+APP_PASSWORD=your-login-password
+API_TOKEN=a-long-random-secret
+POSTGRES_PASSWORD=a-long-random-db-password
+FRONTEND_PORT=8088
 ```
 
-Generate random secrets with OpenSSL:
+Generate secrets when needed:
 
 ```bash
 openssl rand -hex 32
 ```
 
-Start:
+Start Mileage:
 
 ```bash
 docker compose -f compose.release.yml up -d
 ```
 
-Access at:
+`compose.release.yml` uses the GHCR images above by default. If the images are
+not present locally, Docker Compose pulls them automatically. No local image
+build is required.
+
+The release compose file uses:
+
+```text
+ghcr.io/moyuin-aka/mileage-api
+ghcr.io/moyuin-aka/mileage-frontend
+```
+
+Open:
 
 ```text
 http://localhost:8088
 ```
 
-Replace `localhost` with your server address when deploying remotely.
-
-## Docker Images
-
-Pre-built images are published on GitHub Container Registry:
+On a remote machine, replace `localhost` with your server domain or IP, for example:
 
 ```text
-ghcr.io/moyuin-aka/mileage-api:0.2.0
-ghcr.io/moyuin-aka/mileage-frontend:0.2.0
+https://mileage.example.com
+http://192.168.1.10:8088
 ```
 
-`compose.release.yml` uses `latest` by default. To pin a specific version, set in `.env`:
+## Update
 
 ```bash
-MILEAGE_API_IMAGE=ghcr.io/moyuin-aka/mileage-api:0.2.0
-MILEAGE_FRONTEND_IMAGE=ghcr.io/moyuin-aka/mileage-frontend:0.2.0
+docker compose -f compose.release.yml pull && docker compose -f compose.release.yml up -d
 ```
 
-## Upgrading
+Migrations run automatically when the API starts. Data lives in the `pgdata` Docker volume; back it up before upgrading.
+
+Pin a release image if you do not want `latest`:
 
 ```bash
-docker compose -f compose.release.yml pull
-docker compose -f compose.release.yml up -d
+MILEAGE_API_IMAGE=ghcr.io/moyuin-aka/mileage-api:0.3.0
+MILEAGE_FRONTEND_IMAGE=ghcr.io/moyuin-aka/mileage-frontend:0.3.0
 ```
 
-Database migrations run automatically on API startup. Data is stored in the `pgdata` Docker volume — back it up before upgrading.
-
-## Backup
-
-Export the database:
+Backup:
 
 ```bash
 docker compose -f compose.release.yml exec db pg_dump -U mileage mileage > mileage-backup.sql
 ```
 
-Stop the service and ensure the target database is empty before restoring.
+## Client Apps
 
-## Cost Model
+The web app is the main interface. Release builds may also include macOS, Windows, and Android APK client packages.
 
-The core formula:
+Client apps do not contain a separate database. On the login screen, enter:
+
+- Service URL: the Mileage web address you deployed, such as `https://mileage.example.com`
+- Access password: the `APP_PASSWORD` from your `.env`
+
+## How To Use
+
+1. Add an item with purchase price, date, category, channel, notes, and optional residual value.
+2. For foreign-currency purchases, use the built-in reference FX converter and bank-fee field.
+3. Add later expenses such as repairs, batteries, accessories, warranty work, or maintenance.
+4. Choose whether each expense counts toward total ownership cost.
+5. Review daily cost, dynamic residual value, reference lines, and the cost curve.
+6. Use the replacement calculator when considering an upgrade.
+7. Retire or sell the item when it leaves active use.
+
+## Features
+
+- Asset tracking for electronics, appliances, furniture, vehicles, and other durable goods
+- Daily cost, annualized cost, total investment, archive stats, and cost curves
+- Later-expense tracking with per-expense cost inclusion
+- Sold / retired / active lifecycle states
+- OCR-assisted entry from order screenshots, receipts, or payment pages
+- Reference FX conversion powered by Frankfurter
+- Dynamic salvage value model with resale profiles
+- Replacement verdict with green/yellow/red decision states
+- Old-device handling: sell for recovery, or keep as spare with willingness-to-pay
+- Light / dark mode and English / Chinese UI
+- Single-password self-hosted login
+- Tauri client MVP for connecting to a remote Mileage service
+
+## Replacement Logic
+
+Mileage separates three related ideas:
+
+1. Historical daily cost
 
 ```text
 Daily Cost = (Purchase Price + Included Expenses - Recovery Amount) / Days Owned
 ```
 
-Recovery amount rules:
+Sold items use the actual sale price as recovery. Unsold items use the residual value; if residual value is left blank, electronic devices can use the dynamic salvage model.
 
-- Sold items use the actual sale price
-- Unsold items use the estimated residual value
+2. Dynamic salvage value
 
-Each follow-up expense can individually be included or excluded from the total cost. Battery replacements and screen repairs typically count; free warranty claims or record-only entries can be excluded.
+```text
+V(t) = P * (1 - r) ^ (t / 365)
+```
 
-## Roadmap
+`P` is purchase price, `r` is annual depreciation rate, and `t` is days used. Mileage ships with rough profiles: value-keeper, steady-service, and fast-drop.
 
-`0.2.0` adds OCR-assisted entry and English/Chinese UI switching on top of the original asset tracking, cost stats, follow-up expenses, and password protection.
+3. Upgrade verdict
 
-`1.0.0` will polish the OCR experience for more reliable extraction from purchase screenshots, order confirmations, and receipts.
+For upgrade decisions, Mileage compares future marginal cost rather than only historical sunk cost:
+
+- Keeping the current main device: estimated next-year value loss + optional daily hassle cost
+- Buying the new device: first-year depreciation, plus old-device opportunity cost if you keep the old one as a spare
+- If you sell the old one, its current value is treated as recovery; if you keep it, the model asks what you are willing to pay per day for having it as a spare
+
+The verdict preferences are inspired by:
+
+- Weber-Fechner law / just noticeable difference: small relative differences may not feel meaningful
+- Mental accounting and the "latte factor": small daily premiums can feel different from one large purchase
+- Loss aversion and status quo bias: large daily or ratio increases should trigger a stronger warning
+- Sunk cost framing: already-paid repairs are shown as context, but the upgrade decision focuses on future cost
+
+This is a decision aid, not financial advice. Real replacement decisions also include emotion, reliability, work needs, software support, comfort, curiosity, aesthetics, and many other factors Mileage cannot fully quantify.
 
 ## Local Development
 
@@ -140,12 +188,6 @@ cp .env.example .env
 cd frontend && npm install && npm run build && cd ..
 docker compose up --build
 ```
-
-Stack:
-
-- React + TypeScript + Vite + Tailwind CSS
-- Hono + TypeScript + PostgreSQL
-- Docker Compose
 
 ## License
 

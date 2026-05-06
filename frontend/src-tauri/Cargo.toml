@@ -1,0 +1,17 @@
+[package]
+name = "mileage"
+version = "0.3.0"
+description = "Mileage desktop client"
+authors = ["Mileage contributors"]
+edition = "2021"
+license = "AGPL-3.0-only"
+
+[lib]
+name = "mileage_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }

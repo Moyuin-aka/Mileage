@@ -11,8 +11,7 @@ import {
   OcrParseResult,
 } from '@/types'
 import { getAuthToken, logout } from '@/lib/auth'
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? ''
+import { getRuntimeApiBaseUrl } from '@/lib/connection'
 
 function headers(): HeadersInit {
   const token = getAuthToken()
@@ -33,7 +32,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ? { ...authHeader(), ...init?.headers }
     : { ...headers(), ...init?.headers }
 
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(`${getRuntimeApiBaseUrl()}${path}`, {
     ...init,
     headers: requestHeaders,
   })

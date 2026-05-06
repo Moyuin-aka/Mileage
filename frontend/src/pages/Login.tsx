@@ -1,10 +1,16 @@
 import { FormEvent, useState } from 'react'
-import { ArrowRight, Loader2, LockKeyhole, TrendingDown, Languages, Moon, Sun } from 'lucide-react'
+import { ArrowRight, Loader2, LockKeyhole, Languages, Moon, Server, Sun } from 'lucide-react'
 import { api } from '@/lib/api'
 import { setAuthToken } from '@/lib/auth'
+import {
+  getRemoteBaseUrl,
+  requiresRemoteUrl,
+  setRemoteBaseUrl,
+} from '@/lib/connection'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { BrandMark } from '@/components/layout/BrandMark'
 import { useLanguage } from '@/i18n'
 import { useTheme } from '@/theme'
 
@@ -15,6 +21,8 @@ interface LoginProps {
 export function Login({ onAuthenticated }: LoginProps) {
   const { t, toggleLanguage } = useLanguage()
   const { theme, toggleTheme } = useTheme()
+  const needsRemoteUrl = requiresRemoteUrl()
+  const [remoteUrl, setRemoteUrl] = useState(() => getRemoteBaseUrl())
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -25,6 +33,14 @@ export function Login({ onAuthenticated }: LoginProps) {
     setIsSubmitting(true)
 
     try {
+      if (needsRemoteUrl) {
+        try {
+          setRemoteUrl(setRemoteBaseUrl(remoteUrl))
+        } catch {
+          setError(t('login.remoteError'))
+          return
+        }
+      }
       const session = await api.login(password)
       setAuthToken(session.token)
       onAuthenticated()
@@ -40,9 +56,7 @@ export function Login({ onAuthenticated }: LoginProps) {
       <div className="mx-auto flex min-h-screen w-full max-w-sm flex-col justify-center px-5 py-10">
         <div className="mb-8 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-accent-muted bg-accent-bg">
-              <TrendingDown className="h-5 w-5 text-accent" />
-            </div>
+            <BrandMark className="h-10 w-10 shadow-sm ring-1 ring-accent-muted" />
             <div>
               <h1 className="font-serif text-lg font-semibold leading-none">Mileage</h1>
               <p className="mt-1 text-xs text-muted">{t('app.subtitle')}</p>
@@ -81,6 +95,28 @@ export function Login({ onAuthenticated }: LoginProps) {
             {t('login.passwordLabel')}
           </div>
 
+          {needsRemoteUrl && (
+            <div className="mb-4 space-y-2">
+              <Label htmlFor="remote-url">{t('login.remoteUrl')}</Label>
+              <div className="relative">
+                <Server className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+                <Input
+                  id="remote-url"
+                  type="url"
+                  className="pl-9"
+                  value={remoteUrl}
+                  onChange={event => setRemoteUrl(event.target.value)}
+                  autoComplete="url"
+                  placeholder={t('login.remotePlaceholder')}
+                  disabled={isSubmitting}
+                />
+              </div>
+              <p className="text-2xs leading-relaxed text-muted">
+                {t('login.remoteHint')}
+              </p>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="app-password">{t('login.passwordField')}</Label>
             <Input
@@ -106,7 +142,7 @@ export function Login({ onAuthenticated }: LoginProps) {
             variant="accent"
             size="lg"
             className="mt-5 w-full"
-            disabled={!password || isSubmitting}
+            disabled={!password || (needsRemoteUrl && !remoteUrl.trim()) || isSubmitting}
           >
             {isSubmitting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
