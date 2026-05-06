@@ -80,7 +80,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: frontend
-          tauriScript: npm run tauri --
+          tauriScript: npm run tauri
           tagName: ${{ github.ref_type == 'tag' && github.ref_name || env.RELEASE_TAG }}
           releaseName: ${{ env.RELEASE_NAME }}
           releaseBody: ${{ env.RELEASE_BODY }}
@@ -118,7 +118,9 @@ jobs:
       - name: Install Android SDK packages
         shell: bash
         run: |
+          set +o pipefail
           yes | sdkmanager --licenses >/dev/null
+          set -o pipefail
           sdkmanager --install \
             "platform-tools" \
             "platforms;android-35" \
@@ -158,7 +160,7 @@ jobs:
           ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
         with:
           projectPath: frontend
-          tauriScript: npm run tauri --
+          tauriScript: npm run tauri
           tagName: ${{ github.ref_type == 'tag' && github.ref_name || env.RELEASE_TAG }}
           releaseName: ${{ env.RELEASE_NAME }}
           releaseBody: ${{ env.RELEASE_BODY }}
