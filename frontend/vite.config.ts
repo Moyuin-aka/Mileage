@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { resolve } from 'path'
 
+const host = process.env.TAURI_DEV_HOST
+const isTauriBuild = Boolean(process.env.TAURI_ENV_PLATFORM)
+
 export default defineConfig({
   resolve: {
     alias: {
@@ -11,7 +14,7 @@ export default defineConfig({
   },
   plugins: [
     react(),
-    VitePWA({
+    !isTauriBuild && VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
@@ -47,13 +50,31 @@ export default defineConfig({
       },
     }),
   ],
+  envPrefix: ['VITE_', 'TAURI_ENV_*'],
   server: {
     port: 5173,
+    strictPort: true,
+    host: host || false,
+    hmr: host
+      ? {
+          protocol: 'ws',
+          host,
+          port: 1421,
+        }
+      : undefined,
+    watch: {
+      ignored: ['**/src-tauri/**'],
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
     },
+  },
+  build: {
+    target: process.env.TAURI_ENV_PLATFORM === 'windows' ? 'chrome105' : 'safari13',
+    minify: process.env.TAURI_ENV_DEBUG ? false : 'esbuild',
+    sourcemap: Boolean(process.env.TAURI_ENV_DEBUG),
   },
 })

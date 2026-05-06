@@ -7,15 +7,20 @@ import { ItemForm } from '@/pages/ItemForm'
 import { Archive } from '@/pages/Archive'
 import { Login } from '@/pages/Login'
 import { hasAuthToken, onAuthChange } from '@/lib/auth'
+import { hasRequiredConnectionConfig } from '@/lib/connection'
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => USE_MOCK || hasAuthToken())
+  const [isAuthenticated, setIsAuthenticated] = useState(() => (
+    USE_MOCK || (hasRequiredConnectionConfig() && hasAuthToken())
+  ))
 
   useEffect(() => {
     if (USE_MOCK) return undefined
-    return onAuthChange(() => setIsAuthenticated(hasAuthToken()))
+    return onAuthChange(() => (
+      setIsAuthenticated(hasRequiredConnectionConfig() && hasAuthToken())
+    ))
   }, [])
 
   if (!isAuthenticated) {
