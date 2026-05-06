@@ -464,7 +464,10 @@ function findLatestRepairSignal(item: ItemWithStats): UpgradeSignals['latestRepa
     type: latestRepair.type,
     amount: latestRepair.amount,
     date: latestRepair.expense_date,
-    overResidual: item.residual_value > 0 && latestRepair.amount > item.residual_value,
+    overResidual:
+      item.residual_value != null &&
+      item.residual_value > 0 &&
+      latestRepair.amount > item.residual_value,
   }
 }
 

@@ -6,6 +6,7 @@ import type {
   ItemInput,
   ItemStatus,
   MoneyCurrency,
+  SalvageProfile,
 } from './types.js'
 import { todayDateOnly } from './stats.js'
 
@@ -19,6 +20,12 @@ const CATEGORIES = new Set<ItemCategory>([
 
 const STATUSES = new Set<ItemStatus>(['active', 'retired', 'sold'])
 const CURRENCIES = new Set<MoneyCurrency>(['CNY', 'USD', 'HKD', 'JPY', 'EUR', 'GBP', 'TWD', 'MOP'])
+const SALVAGE_PROFILES = new Set<SalvageProfile>(['valueKeeper', 'steady', 'fastDrop'])
+const SALVAGE_PROFILE_RATES: Record<SalvageProfile, number> = {
+  valueKeeper: 0.12,
+  steady: 0.23,
+  fastDrop: 0.38,
+}
 
 const EXPENSE_TYPES = new Set<ExpenseType>([
   'repair',
@@ -41,7 +48,9 @@ export interface NormalizedItemInput {
   fx_source: string | null
   purchase_date: string
   expected_years: number | null
-  residual_value: number
+  residual_value: number | null
+  salvage_profile: SalvageProfile | null
+  annual_depreciation_rate: number | null
   purchase_channel: string | null
   status: ItemStatus
   retired_at: string | null
@@ -89,7 +98,21 @@ export function normalizeItemInput(input: ItemInput, existing?: Item): Normalize
     issues,
   )
   const expectedYears = optionalNumber(input.expected_years ?? existing?.expected_years)
-  const residualValue = optionalNumber(input.residual_value ?? existing?.residual_value) ?? 0
+  const residualValue = optionalNumber(
+    hasInputKey(input, 'residual_value')
+      ? input.residual_value
+      : existing?.residual_value,
+  )
+  const salvageProfileValue = hasInputKey(input, 'salvage_profile')
+    ? input.salvage_profile
+    : existing?.salvage_profile
+  const annualDepreciationRateValue = hasInputKey(input, 'annual_depreciation_rate')
+    ? input.annual_depreciation_rate
+    : existing?.annual_depreciation_rate
+  let salvageProfile = parseSalvageProfile(salvageProfileValue, issues)
+  let annualDepreciationRate = optionalNumber(
+    annualDepreciationRateValue,
+  )
   const purchaseChannel = optionalString(input.purchase_channel ?? existing?.purchase_channel)
   const status = parseStatus(input.status ?? existing?.status ?? 'active', issues)
   const notes = optionalString(input.notes ?? existing?.notes)
@@ -106,7 +129,13 @@ export function normalizeItemInput(input: ItemInput, existing?: Item): Normalize
   if (fxRate != null && fxRate <= 0) issues.push('fx_rate must be > 0')
   if (fxBankFee < 0) issues.push('fx_bank_fee must be >= 0')
   if (expectedYears != null && expectedYears <= 0) issues.push('expected_years must be > 0')
-  if (residualValue < 0) issues.push('residual_value must be >= 0')
+  if (residualValue != null && residualValue < 0) issues.push('residual_value must be >= 0')
+  if (
+    annualDepreciationRate != null &&
+    (annualDepreciationRate < 0 || annualDepreciationRate >= 1)
+  ) {
+    issues.push('annual_depreciation_rate must be >= 0 and < 1')
+  }
   if (soldPrice != null && soldPrice < 0) issues.push('sold_price must be >= 0')
 
   if (purchaseDate && purchaseDate > todayDateOnly()) {
@@ -129,6 +158,13 @@ export function normalizeItemInput(input: ItemInput, existing?: Item): Normalize
     fxRateDate = null
     fxBankFee = 0
     fxSource = null
+  }
+
+  if (category !== 'electronics') {
+    salvageProfile = null
+    annualDepreciationRate = null
+  } else if (salvageProfile && annualDepreciationRate == null) {
+    annualDepreciationRate = SALVAGE_PROFILE_RATES[salvageProfile]
   }
 
   if (status === 'active') {
@@ -164,6 +200,8 @@ export function normalizeItemInput(input: ItemInput, existing?: Item): Normalize
     purchase_date: purchaseDate!,
     expected_years: expectedYears,
     residual_value: residualValue,
+    salvage_profile: salvageProfile,
+    annual_depreciation_rate: annualDepreciationRate,
     purchase_channel: purchaseChannel,
     status: status!,
     retired_at: retiredAt,
@@ -229,6 +267,10 @@ function optionalNumber(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+function hasInputKey(input: ItemInput, key: keyof ItemInput): boolean {
+  return Object.prototype.hasOwnProperty.call(input, key)
+}
+
 function requiredDateOnly(value: unknown, field: string, issues: string[]): string | null {
   const parsed = optionalDateOnly(value)
   if (!parsed) {
@@ -260,6 +302,15 @@ function parseStatus(value: unknown, issues: string[]): ItemStatus | null {
     return value as ItemStatus
   }
   issues.push('status is invalid')
+  return null
+}
+
+function parseSalvageProfile(value: unknown, issues: string[]): SalvageProfile | null {
+  if (value == null || value === '') return null
+  if (typeof value === 'string' && SALVAGE_PROFILES.has(value as SalvageProfile)) {
+    return value as SalvageProfile
+  }
+  issues.push('salvage_profile is invalid')
   return null
 }
 

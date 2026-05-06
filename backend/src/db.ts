@@ -6,6 +6,7 @@ import type {
   ItemExpense,
   ItemStatus,
   MoneyCurrency,
+  SalvageProfile,
 } from './types.js'
 
 const { Pool, types } = pg
@@ -37,7 +38,9 @@ export function mapItem(row: Record<string, unknown>): Item {
     fx_source: optionalString(row.fx_source),
     purchase_date: toDateOnly(row.purchase_date),
     expected_years: optionalNumber(row.expected_years),
-    residual_value: Number(row.residual_value ?? 0),
+    residual_value: optionalNumber(row.residual_value) ?? null,
+    salvage_profile: optionalSalvageProfile(row.salvage_profile),
+    annual_depreciation_rate: optionalNumber(row.annual_depreciation_rate),
     purchase_channel: optionalString(row.purchase_channel),
     status: row.status as ItemStatus,
     retired_at: optionalDateOnly(row.retired_at),
@@ -71,6 +74,10 @@ function optionalString(value: unknown): string | undefined {
 
 function optionalNumber(value: unknown): number | undefined {
   return value == null ? undefined : Number(value)
+}
+
+function optionalSalvageProfile(value: unknown): SalvageProfile | undefined {
+  return value == null ? undefined : value as SalvageProfile
 }
 
 function optionalDateOnly(value: unknown): string | undefined {
