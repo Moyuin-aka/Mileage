@@ -75,6 +75,16 @@ bin/
 src-tauri/target/
 frontend/src-tauri/target/
 
+# Android build artifacts and secrets
+*.apk
+*.aab
+*.jks
+frontend/src-tauri/gen/android/app/build/
+frontend/src-tauri/gen/android/build/
+frontend/src-tauri/gen/android/.gradle/
+frontend/src-tauri/gen/android/local.properties
+frontend/src-tauri/gen/android/keystore.properties
+
 # Python OCR tooling artifacts
 __pycache__/
 *.py[cod]
