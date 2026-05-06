@@ -407,6 +407,8 @@ async function insertItem(input: NormalizedItemInput) {
        purchase_date,
        expected_years,
        residual_value,
+       salvage_profile,
+       annual_depreciation_rate,
        purchase_channel,
        status,
        retired_at,
@@ -415,7 +417,7 @@ async function insertItem(input: NormalizedItemInput) {
        notes,
        image_url
      )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
      RETURNING *`,
     inputValues(input),
   )
@@ -473,13 +475,15 @@ async function updateItem(id: string, input: NormalizedItemInput) {
        purchase_date = $11,
        expected_years = $12,
        residual_value = $13,
-       purchase_channel = $14,
-       status = $15,
-       retired_at = $16,
-       sold_at = $17,
-       sold_price = $18,
-       notes = $19,
-       image_url = $20
+       salvage_profile = $14,
+       annual_depreciation_rate = $15,
+       purchase_channel = $16,
+       status = $17,
+       retired_at = $18,
+       sold_at = $19,
+       sold_price = $20,
+       notes = $21,
+       image_url = $22
      WHERE id = $1 AND deleted_at IS NULL
      RETURNING *`,
     [id, ...inputValues(input)],
@@ -501,6 +505,8 @@ function inputValues(input: NormalizedItemInput) {
     input.purchase_date,
     input.expected_years,
     input.residual_value,
+    input.salvage_profile,
+    input.annual_depreciation_rate,
     input.purchase_channel,
     input.status,
     input.retired_at,

@@ -9,10 +9,12 @@ import {
   MoneyCurrency,
   OcrCandidate,
   OcrParseResult,
+  SalvageProfile,
 } from '@/types'
 import { useItem, useItemMutations } from '@/hooks/useItems'
 import { api } from '@/lib/api'
 import { formatCurrencyAmount, moneyPrefix, MONEY_CURRENCIES } from '@/lib/currency'
+import { SALVAGE_PROFILE_RATES } from '@/lib/dynamicSalvage'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -35,6 +37,7 @@ const CATEGORIES: ItemCategory[] = [
 ]
 
 const STATUSES: ItemStatus[] = ['active', 'retired', 'sold']
+const SALVAGE_PROFILES: SalvageProfile[] = ['valueKeeper', 'steady', 'fastDrop']
 
 const DEFAULTS: ItemFormData = {
   name: '',
@@ -44,7 +47,7 @@ const DEFAULTS: ItemFormData = {
   fx_bank_fee: 0,
   purchase_date: new Date().toISOString().slice(0, 10),
   expected_years: undefined,
-  residual_value: 0,
+  residual_value: undefined,
   purchase_channel: '',
   status: 'active',
   retired_at: undefined,
@@ -103,7 +106,9 @@ export function ItemForm() {
         fx_source: item.fx_source,
         purchase_date: toDateInputValue(item.purchase_date),
         expected_years: item.expected_years,
-        residual_value: item.residual_value,
+        residual_value: item.residual_value ?? undefined,
+        salvage_profile: item.salvage_profile,
+        annual_depreciation_rate: item.annual_depreciation_rate,
         purchase_channel: item.purchase_channel ?? '',
         status: item.status,
         retired_at: toDateInputValue(item.retired_at),
@@ -232,8 +237,12 @@ export function ItemForm() {
       fx_rate_date: form.purchase_currency !== 'CNY' ? form.fx_rate_date : undefined,
       fx_bank_fee: form.purchase_currency !== 'CNY' ? Number(form.fx_bank_fee) || 0 : 0,
       fx_source: form.purchase_currency !== 'CNY' ? form.fx_source : undefined,
-      residual_value: Number(form.residual_value) || 0,
+      residual_value:
+        form.residual_value == null ? null : Number(form.residual_value) || 0,
       expected_years: form.expected_years ? Number(form.expected_years) : undefined,
+      salvage_profile: form.category === 'electronics' ? form.salvage_profile ?? null : null,
+      annual_depreciation_rate:
+        form.category === 'electronics' ? form.annual_depreciation_rate ?? null : null,
       sold_price: form.sold_price ? Number(form.sold_price) : undefined,
     }
 
@@ -292,7 +301,16 @@ export function ItemForm() {
           <Field label={t('form.category')} required>
             <Select
               value={form.category}
-              onValueChange={v => set('category', v as ItemCategory)}
+              onValueChange={v => {
+                const category = v as ItemCategory
+                setForm(prev => ({
+                  ...prev,
+                  category,
+                  salvage_profile: category === 'electronics' ? prev.salvage_profile : undefined,
+                  annual_depreciation_rate:
+                    category === 'electronics' ? prev.annual_depreciation_rate : undefined,
+                }))
+              }}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -450,13 +468,84 @@ export function ItemForm() {
                 type="number"
                 min={0}
                 step={0.01}
-                placeholder="0.00"
+                placeholder={t('form.auto')}
                 prefix="¥"
-                value={form.residual_value || ''}
-                onChange={e => set('residual_value', parseFloat(e.target.value) || 0)}
+                value={form.residual_value ?? ''}
+                onChange={e =>
+                  set(
+                    'residual_value',
+                    e.target.value === '' ? undefined : parseFloat(e.target.value) || 0,
+                  )
+                }
               />
             </Field>
           </div>
+
+          {form.category === 'electronics' && (
+            <div className="rounded-xl border border-app-border bg-surface-2/40 p-4">
+              <div className="mb-3">
+                <p className="text-sm font-medium text-secondary">{t('form.salvageTitle')}</p>
+                <p className="mt-0.5 text-2xs text-muted">{t('form.salvageHint')}</p>
+              </div>
+              <div className="grid grid-cols-[1fr_7rem] gap-3">
+                <div className="space-y-1.5">
+                  <Label>{t('form.salvageProfile')}</Label>
+                  <Select
+                    value={form.salvage_profile ?? 'auto'}
+                    onValueChange={value => {
+                      if (value === 'auto') {
+                        setForm(prev => ({
+                          ...prev,
+                          salvage_profile: undefined,
+                          annual_depreciation_rate: undefined,
+                        }))
+                        return
+                      }
+                      const profile = value as SalvageProfile
+                      setForm(prev => ({
+                        ...prev,
+                        salvage_profile: profile,
+                        annual_depreciation_rate: SALVAGE_PROFILE_RATES[profile],
+                      }))
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">{t('form.salvageAuto')}</SelectItem>
+                      {SALVAGE_PROFILES.map(profile => (
+                        <SelectItem key={profile} value={profile}>
+                          {salvageProfileLabel(profile, t)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="annual-depreciation-rate">{t('form.annualDepreciation')}</Label>
+                  <Input
+                    id="annual-depreciation-rate"
+                    type="number"
+                    min={0}
+                    max={95}
+                    step={1}
+                    suffix="%"
+                    value={
+                      form.annual_depreciation_rate != null
+                        ? Number((form.annual_depreciation_rate * 100).toFixed(2))
+                        : ''
+                    }
+                    placeholder={form.salvage_profile ? '' : t('form.auto')}
+                    onChange={event => {
+                      const raw = event.target.value
+                      set('annual_depreciation_rate', raw === '' ? undefined : Number(raw) / 100)
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           <Field label={t('form.channel')}>
             <Input
@@ -766,6 +855,15 @@ function CandidateRow<T extends string | number>({
 function formatMoneyCandidate(candidate: OcrCandidate<number>) {
   const prefix = moneyPrefix(candidate.currency ?? '')
   return candidate.currency ? `${prefix}${candidate.value} ${candidate.currency}` : `${prefix}${candidate.value}`
+}
+
+function salvageProfileLabel(
+  profile: SalvageProfile,
+  t: ReturnType<typeof useLanguage>['t'],
+) {
+  if (profile === 'valueKeeper') return t('salvage.profile.valueKeeper')
+  if (profile === 'fastDrop') return t('salvage.profile.fastDrop')
+  return t('salvage.profile.steady')
 }
 
 function CurrencySelect({

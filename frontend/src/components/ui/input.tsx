@@ -9,6 +9,7 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, prefix, suffix, ...props }, ref) => {
     if (prefix || suffix) {
+      const affixPadding = getAffixPadding(prefix, suffix)
       return (
         <div className="relative flex items-center">
           {prefix && (
@@ -24,8 +25,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
               'text-sm h-10',
               'focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/60',
               'transition-colors duration-100',
-              prefix ? 'pl-7' : 'px-3',
-              suffix ? 'pr-10' : 'px-3',
+              affixPadding,
               className,
             )}
             {...props}
@@ -56,6 +56,24 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   },
 )
 Input.displayName = 'Input'
+
+function getAffixPadding(prefix?: string, suffix?: string) {
+  const leftPadding = prefix
+    ? prefix.length >= 4
+      ? 'pl-16'
+      : prefix.length >= 3
+        ? 'pl-12'
+        : 'pl-8'
+    : 'pl-3'
+
+  const rightPadding = suffix
+    ? suffix.length >= 3
+      ? 'pr-14'
+      : 'pr-10'
+    : 'pr-3'
+
+  return `${leftPadding} ${rightPadding}`
+}
 
 export const Textarea = React.forwardRef<
   HTMLTextAreaElement,

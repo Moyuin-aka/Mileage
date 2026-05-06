@@ -19,6 +19,7 @@ export type ExpenseType =
   | 'other'        // 其他
 
 export type MoneyCurrency = 'CNY' | 'USD' | 'HKD' | 'JPY' | 'EUR' | 'GBP' | 'TWD' | 'MOP'
+export type SalvageProfile = 'valueKeeper' | 'steady' | 'fastDrop'
 
 export interface ItemExpense {
   id: string
@@ -45,7 +46,9 @@ export interface Item {
   fx_source?: string
   purchase_date: string       // ISO date: YYYY-MM-DD
   expected_years?: number
-  residual_value: number
+  residual_value?: number | null
+  salvage_profile?: SalvageProfile | null
+  annual_depreciation_rate?: number | null
   purchase_channel?: string
   status: ItemStatus
   retired_at?: string

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Edit3, Trash2, Archive, DollarSign,
@@ -14,7 +14,12 @@ import {
   ItemWithStats,
 } from '@/types'
 import { useItem, useItemMutations } from '@/hooks/useItems'
-import { generateCostTrend, formatCNY, formatDailyCost } from '@/lib/calculations'
+import {
+  generateCostTrend,
+  generateDynamicCostTrend,
+  formatCNY,
+  formatDailyCost,
+} from '@/lib/calculations'
 import {
   COST_BENCHMARK_PROFILES,
   MAIN_DEVICE_PROFILES,
@@ -32,8 +37,15 @@ import {
 } from '@/lib/costBenchmarks'
 import { formatDate } from '@/lib/utils'
 import { formatCurrencyAmount } from '@/lib/currency'
+import {
+  buildDynamicSalvageAnalysis,
+  inferSalvageProfile,
+  SALVAGE_PROFILE_RATES,
+  type SalvageProfile,
+} from '@/lib/dynamicSalvage'
 import { CostTrendChart } from '@/components/items/CostTrendChart'
 import { ComparisonCalculator } from '@/components/items/ComparisonCalculator'
+import { DynamicSalvagePanel } from '@/components/items/DynamicSalvagePanel'
 import { CategoryBadge, StatusBadge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -77,6 +89,11 @@ export function ItemDetail() {
   const [keywordDraft, setKeywordDraft] = useState<KeywordDraft>(() =>
     keywordsToDraft(loadCostBenchmarkKeywords()),
   )
+  const [salvageProfile, setSalvageProfile] = useState<SalvageProfile | null>(null)
+
+  useEffect(() => {
+    setSalvageProfile(null)
+  }, [id])
 
   if (loading) return <LoadingSkeleton />
   if (error || !item) {
@@ -95,6 +112,23 @@ export function ItemDetail() {
   const upgradeSignals = buildUpgradeSignals(item, benchmarkKeywords)
   const canConfigureBenchmark = item.status === 'active' && item.category === 'electronics'
   const isPeripheralOverService = upgradeSignals?.isOverService === true
+  const canShowDynamicSalvage = item.status === 'active' && item.category === 'electronics'
+  const activeSalvageProfile = salvageProfile ?? item.salvage_profile ?? inferSalvageProfile(item)
+  const dynamicSalvage = canShowDynamicSalvage
+    ? buildDynamicSalvageAnalysis(
+        item,
+        activeSalvageProfile,
+        salvageProfile ? SALVAGE_PROFILE_RATES[salvageProfile] : undefined,
+      )
+    : null
+  const dynamicTrendData = dynamicSalvage
+    ? generateDynamicCostTrend(
+        item,
+        365,
+        dynamicSalvage.annualRate,
+        dynamicSalvage.floorValue,
+      )
+    : undefined
 
   function openKeywordSettings() {
     setKeywordDraft(keywordsToDraft(benchmarkKeywords))
@@ -301,6 +335,13 @@ export function ItemDetail() {
         )
       )}
 
+      {dynamicSalvage && (
+        <DynamicSalvagePanel
+          analysis={dynamicSalvage}
+          onProfileChange={setSalvageProfile}
+        />
+      )}
+
       {/* Cost trend chart */}
       <div className="rounded-xl border border-app-border bg-surface-2 p-5">
         <div className="flex items-center justify-between mb-4">
@@ -312,6 +353,8 @@ export function ItemDetail() {
         <CostTrendChart
           data={trendData}
           todayDay={item.days_owned}
+          compareData={dynamicTrendData}
+          compareLabel={dynamicTrendData ? t('salvage.chartLabel') : undefined}
           referenceBand={
             upgradeSignals
               ? {
@@ -357,7 +400,11 @@ export function ItemDetail() {
               colSpan
             />
           )}
-          <InfoRow icon={DollarSign} label={t('detail.residualValue')} value={formatCNY(item.residual_value)} />
+          <InfoRow
+            icon={DollarSign}
+            label={t('detail.residualValue')}
+            value={item.residual_value == null ? t('form.auto') : formatCNY(item.residual_value)}
+          />
           <InfoRow icon={Wrench} label={t('detail.includedExpenses')} value={formatCNY(expenseTotal)} />
           <InfoRow icon={DollarSign} label={t('detail.totalCost')} value={formatCNY(item.total_cost)} />
           <InfoRow

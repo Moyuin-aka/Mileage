@@ -8,10 +8,13 @@ import { Archive } from '@/pages/Archive'
 import { Login } from '@/pages/Login'
 import { hasAuthToken, onAuthChange } from '@/lib/auth'
 
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
+
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(hasAuthToken)
+  const [isAuthenticated, setIsAuthenticated] = useState(() => USE_MOCK || hasAuthToken())
 
   useEffect(() => {
+    if (USE_MOCK) return undefined
     return onAuthChange(() => setIsAuthenticated(hasAuthToken()))
   }, [])
 

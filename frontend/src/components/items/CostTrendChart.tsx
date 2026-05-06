@@ -25,7 +25,11 @@ interface CostTrendChartProps {
   }
 }
 
-function CustomTooltip({ active, payload }: TooltipProps<number, string>) {
+function CustomTooltip({
+  active,
+  payload,
+  compareLabel,
+}: TooltipProps<number, string> & { compareLabel?: string }) {
   const { t } = useLanguage()
   if (!active || !payload?.length) return null
   const main = payload.find(p => p.dataKey === 'daily_cost')
@@ -44,7 +48,7 @@ function CustomTooltip({ active, payload }: TooltipProps<number, string>) {
       )}
       {compare && (
         <p className="text-info font-mono text-xs mt-1">
-          {t('chart.newDeviceLabel')}: {formatCNY(compare.value as number)} {t('chart.perDay')}
+          {compareLabel ?? t('chart.newDeviceLabel')}: {formatCNY(compare.value as number)} {t('chart.perDay')}
         </p>
       )}
     </div>
@@ -66,8 +70,9 @@ export function CostTrendChart({
   })
 
   const referenceValues = referenceBand ? [referenceBand.min, referenceBand.max] : []
-  const minCost = Math.min(...data.map(d => d.daily_cost), ...referenceValues)
-  const maxCost = Math.max(...data.map(d => d.daily_cost), ...referenceValues)
+  const compareValues = compareData?.map(d => d.daily_cost) ?? []
+  const minCost = Math.min(...data.map(d => d.daily_cost), ...compareValues, ...referenceValues)
+  const maxCost = Math.max(...data.map(d => d.daily_cost), ...compareValues, ...referenceValues)
 
   return (
     <div className="w-full">
@@ -95,7 +100,7 @@ export function CostTrendChart({
             domain={[minCost * 0.8, maxCost * 1.05]}
             width={48}
           />
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={<CustomTooltip compareLabel={compareLabel} />} />
 
           {todayDay && (
             <ReferenceLine
