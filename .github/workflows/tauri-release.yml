@@ -86,8 +86,7 @@ jobs:
           releaseBody: ${{ env.RELEASE_BODY }}
           releaseDraft: false
           prerelease: false
-          uploadUpdaterJson: false
-          uploadWorkflowArtifacts: true
+          includeUpdaterJson: false
           retryAttempts: 2
           args: ${{ matrix.args }}
 
@@ -121,12 +120,14 @@ jobs:
           set +o pipefail
           yes | sdkmanager --licenses >/dev/null
           set -o pipefail
+
           sdkmanager --install \
             "platform-tools" \
             "platforms;android-35" \
             "build-tools;35.0.0" \
             "cmdline-tools;latest" \
             "ndk;27.2.12479018"
+
           echo "NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
 
@@ -152,22 +153,34 @@ jobs:
             npm run tauri -- android init
           fi
 
-      - name: Build and upload Android APKs
-        uses: tauri-apps/tauri-action@v0.6.2
+      - name: Build Android APKs
+        working-directory: frontend
+        shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NDK_HOME: ${{ env.NDK_HOME }}
           ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
+        run: npm run tauri -- android build --debug --apk --split-per-abi
+
+      - name: Upload Android APK workflow artifacts
+        uses: actions/upload-artifact@v4
         with:
-          projectPath: frontend
-          tauriScript: npm run tauri
-          tagName: ${{ github.ref_type == 'tag' && github.ref_name || env.RELEASE_TAG }}
-          releaseName: ${{ env.RELEASE_NAME }}
-          releaseBody: ${{ env.RELEASE_BODY }}
-          releaseDraft: false
+          name: mileage-android-apks
+          path: |
+            frontend/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+            frontend/src-tauri/gen/android/app/build/outputs/**/*.apk
+          if-no-files-found: error
+
+      - name: Upload Android APKs to GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: github.ref_type == 'tag'
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ env.RELEASE_NAME }}
+          body: ${{ env.RELEASE_BODY }}
+          draft: false
           prerelease: false
-          uploadUpdaterJson: false
-          uploadWorkflowArtifacts: true
-          retryAttempts: 2
-          mobile: android
-          args: --debug --apk --split-per-abi
+          files: |
+            frontend/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+            frontend/src-tauri/gen/android/app/build/outputs/**/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
