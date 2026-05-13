@@ -3,6 +3,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import {
   Archive,
   ArrowRightLeft,
+  ArrowUpCircle,
   Languages,
   LayoutDashboard,
   LogOut,
@@ -17,11 +18,15 @@ import { FxConverterDialog } from '@/components/fx/FxConverterDialog'
 import { useLanguage } from '@/i18n'
 import { useTheme } from '@/theme'
 import { useState } from 'react'
+import { isTauriRuntime } from '@/lib/connection'
+import { useUpdateChecker } from '@/hooks/useUpdateChecker'
 
 export function BottomNav() {
   const { t, toggleLanguage } = useLanguage()
   const { theme, toggleTheme } = useTheme()
   const [fxOpen, setFxOpen] = useState(false)
+  const isTauri = isTauriRuntime()
+  const { state: updateState, info: updateInfo, check: checkUpdate } = useUpdateChecker()
 
   const navItems = [
     { to: '/', icon: LayoutDashboard, label: t('nav.assets') },
@@ -111,6 +116,35 @@ export function BottomNav() {
                 <Languages className="h-4 w-4 text-muted" />
                 {t('nav.language')}
               </DropdownMenu.Item>
+              {isTauri && (
+                <>
+                  <DropdownMenu.Separator className="my-1 h-px bg-app-border" />
+                  <DropdownMenu.Item
+                    onSelect={() => {
+                      if (updateState === 'update-available' && updateInfo) {
+                        window.open(updateInfo.releaseUrl, '_blank')
+                      } else {
+                        checkUpdate()
+                      }
+                    }}
+                    className="flex cursor-pointer select-none items-center gap-2 rounded-lg px-3 py-2 text-sm outline-none transition-colors data-[highlighted]:bg-surface-3 data-[highlighted]:text-primary"
+                  >
+                    <ArrowUpCircle className={cn(
+                      'h-4 w-4',
+                      updateState === 'update-available' ? 'text-accent' : 'text-muted',
+                    )} />
+                    <span className={cn(
+                      updateState === 'update-available' ? 'text-accent' : 'text-secondary',
+                    )}>
+                      {updateState === 'checking' && t('update.checking')}
+                      {updateState === 'latest' && `${t('update.latest')} v${updateInfo?.current}`}
+                      {updateState === 'update-available' && `${t('update.available')} v${updateInfo?.latest}`}
+                      {updateState === 'error' && t('update.error')}
+                      {updateState === 'idle' && t('nav.checkUpdate')}
+                    </span>
+                  </DropdownMenu.Item>
+                </>
+              )}
               <DropdownMenu.Separator className="my-1 h-px bg-app-border" />
               <DropdownMenu.Item
                 onSelect={logout}

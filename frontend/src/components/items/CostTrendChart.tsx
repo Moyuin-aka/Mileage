@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   LineChart,
   Line,
@@ -12,6 +13,9 @@ import {
 import { CostTrendPoint } from '@/types'
 import { formatCNY } from '@/lib/calculations'
 import { useLanguage } from '@/i18n'
+import { cn } from '@/lib/utils'
+
+type RangePreset = 'early' | 'current' | 'all'
 
 interface CostTrendChartProps {
   data: CostTrendPoint[]
@@ -64,18 +68,58 @@ export function CostTrendChart({
 }: CostTrendChartProps) {
   const { t } = useLanguage()
 
-  const merged = data.map(pt => {
+  const totalDays = data[data.length - 1]?.day ?? 0
+  const hasEarlyRange = totalDays > 400
+  const defaultPreset: RangePreset = hasEarlyRange ? 'current' : 'all'
+  const [preset, setPreset] = useState<RangePreset>(defaultPreset)
+
+  function rangeForPreset(p: RangePreset): [number, number] {
+    const today = todayDay ?? Math.round(totalDays * 0.7)
+    if (p === 'early') return [1, Math.min(365, totalDays)]
+    if (p === 'current') return [Math.max(1, today - 90), Math.min(totalDays, today + 365)]
+    return [1, totalDays]
+  }
+
+  const [rangeStart, rangeEnd] = rangeForPreset(preset)
+
+  const allMerged = data.map(pt => {
     const cmp = compareData?.find(c => c.day === pt.day)
     return { ...pt, compare_cost: cmp?.daily_cost }
   })
+  const merged = allMerged.filter(pt => pt.day >= rangeStart && pt.day <= rangeEnd)
 
   const referenceValues = referenceBand ? [referenceBand.min, referenceBand.max] : []
-  const compareValues = compareData?.map(d => d.daily_cost) ?? []
-  const minCost = Math.min(...data.map(d => d.daily_cost), ...compareValues, ...referenceValues)
-  const maxCost = Math.max(...data.map(d => d.daily_cost), ...compareValues, ...referenceValues)
+  const compareValues = merged.flatMap(pt => pt.compare_cost != null ? [pt.compare_cost] : [])
+  const minCost = Math.min(...merged.map(d => d.daily_cost), ...compareValues, ...referenceValues)
+  const maxCost = Math.max(...merged.map(d => d.daily_cost), ...compareValues, ...referenceValues)
+
+  const presets: Array<{ key: RangePreset; label: string; show: boolean }> = [
+    { key: 'early', label: t('chart.rangeEarly'), show: hasEarlyRange },
+    { key: 'current', label: t('chart.rangeCurrent'), show: hasEarlyRange },
+    { key: 'all', label: t('chart.rangeAll'), show: true },
+  ]
 
   return (
     <div className="w-full">
+      {presets.some(p => p.show && p.key !== 'all') && (
+        <div className="flex items-center gap-1 mb-3 justify-end">
+          {presets.filter(p => p.show).map(p => (
+            <button
+              key={p.key}
+              type="button"
+              onClick={() => setPreset(p.key)}
+              className={cn(
+                'px-2.5 py-1 rounded-md text-2xs font-medium transition-colors',
+                preset === p.key
+                  ? 'bg-surface-3 text-primary'
+                  : 'text-muted hover:text-secondary hover:bg-surface-3/50',
+              )}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      )}
       <ResponsiveContainer width="100%" height={220}>
         <LineChart data={merged} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
           <CartesianGrid

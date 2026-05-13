@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { resolve } from 'path'
+import pkg from './package.json'
 
 const host = process.env.TAURI_DEV_HOST
 const isTauriBuild = Boolean(process.env.TAURI_ENV_PLATFORM)
@@ -76,5 +77,8 @@ export default defineConfig({
     target: process.env.TAURI_ENV_PLATFORM === 'windows' ? 'chrome105' : 'safari13',
     minify: process.env.TAURI_ENV_DEBUG ? false : 'esbuild',
     sourcemap: Boolean(process.env.TAURI_ENV_DEBUG),
+  },
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
   },
 })

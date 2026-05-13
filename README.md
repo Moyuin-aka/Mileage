@@ -5,7 +5,7 @@
 
   <p>
     <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-AGPL--3.0-blue.svg"></a>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.3.0-44cc7a.svg">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.4.0-44cc7a.svg">
     <img alt="Docker" src="https://img.shields.io/badge/docker-GHCR-2496ED.svg?logo=docker&logoColor=white">
     <img alt="Self hosted" src="https://img.shields.io/badge/self--hosted-Docker%20Compose-111827.svg">
   </p>
@@ -100,8 +100,8 @@ Migrations run automatically when the API starts. Data lives in the `pgdata` Doc
 Pin a release image if you do not want `latest`:
 
 ```bash
-MILEAGE_API_IMAGE=ghcr.io/moyuin-aka/mileage-api:0.3.0
-MILEAGE_FRONTEND_IMAGE=ghcr.io/moyuin-aka/mileage-frontend:0.3.0
+MILEAGE_API_IMAGE=ghcr.io/moyuin-aka/mileage-api:0.4.0
+MILEAGE_FRONTEND_IMAGE=ghcr.io/moyuin-aka/mileage-frontend:0.4.0
 ```
 
 Backup:

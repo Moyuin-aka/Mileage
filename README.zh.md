@@ -5,7 +5,7 @@
 
   <p>
     <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-AGPL--3.0-blue.svg"></a>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.3.0-44cc7a.svg">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.4.0-44cc7a.svg">
     <img alt="Docker" src="https://img.shields.io/badge/docker-GHCR-2496ED.svg?logo=docker&logoColor=white">
     <img alt="Self hosted" src="https://img.shields.io/badge/self--hosted-Docker%20Compose-111827.svg">
   </p>
@@ -98,8 +98,8 @@ docker compose -f compose.release.yml pull && docker compose -f compose.release.
 如果不想使用 `latest`，可以固定镜像版本：
 
 ```bash
-MILEAGE_API_IMAGE=ghcr.io/moyuin-aka/mileage-api:0.3.0
-MILEAGE_FRONTEND_IMAGE=ghcr.io/moyuin-aka/mileage-frontend:0.3.0
+MILEAGE_API_IMAGE=ghcr.io/moyuin-aka/mileage-api:0.4.0
+MILEAGE_FRONTEND_IMAGE=ghcr.io/moyuin-aka/mileage-frontend:0.4.0
 ```
 
 备份数据库：

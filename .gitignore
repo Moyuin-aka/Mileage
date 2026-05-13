@@ -9,6 +9,7 @@ build/
 frontend/build/
 .vite/
 frontend/.vite/
+scripts/
 
 # Logs
 *.log

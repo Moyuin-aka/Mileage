@@ -2,12 +2,16 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import {
   Archive,
   ArrowRightLeft,
+  ArrowUpCircle,
+  CheckCircle,
   Languages,
   LayoutDashboard,
+  Loader2,
   LogOut,
   Moon,
   PlusCircle,
   Sun,
+  XCircle,
 } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
@@ -17,12 +21,16 @@ import { FxConverterDialog } from '@/components/fx/FxConverterDialog'
 import { BrandMark } from '@/components/layout/BrandMark'
 import { useLanguage } from '@/i18n'
 import { useTheme } from '@/theme'
+import { isTauriRuntime } from '@/lib/connection'
+import { useUpdateChecker } from '@/hooks/useUpdateChecker'
 
 export function Sidebar() {
   const navigate = useNavigate()
   const { t, toggleLanguage } = useLanguage()
   const { theme, toggleTheme } = useTheme()
   const [fxOpen, setFxOpen] = useState(false)
+  const isTauri = isTauriRuntime()
+  const { state: updateState, info: updateInfo, check: checkUpdate } = useUpdateChecker()
 
   const navItems = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -106,6 +114,48 @@ export function Sidebar() {
         <Languages className="h-4 w-4" />
         {t('nav.language')}
       </Button>
+
+      {isTauri && (
+        <div className="mt-1">
+          {updateState === 'update-available' && updateInfo ? (
+            <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-accent-bg border border-accent-muted">
+              <ArrowUpCircle className="h-4 w-4 text-accent shrink-0" />
+              <span className="text-xs text-accent flex-1 min-w-0 truncate">
+                {t('update.available')} v{updateInfo.latest}
+              </span>
+              <button
+                type="button"
+                onClick={() => window.open(updateInfo.releaseUrl, '_blank')}
+                className="text-2xs text-accent font-medium hover:underline shrink-0"
+              >
+                {t('update.download')}
+              </button>
+            </div>
+          ) : (
+            <Button
+              variant="ghost"
+              size="md"
+              className={cn(
+                'w-full justify-start',
+                updateState === 'latest' ? 'text-success' : 'text-muted',
+              )}
+              onClick={checkUpdate}
+              disabled={updateState === 'checking'}
+            >
+              {updateState === 'checking' && <Loader2 className="h-4 w-4 animate-spin" />}
+              {updateState === 'latest' && <CheckCircle className="h-4 w-4" />}
+              {updateState === 'error' && <XCircle className="h-4 w-4 text-danger" />}
+              {(updateState === 'idle') && <ArrowUpCircle className="h-4 w-4" />}
+              <span className={updateState === 'error' ? 'text-danger' : ''}>
+                {updateState === 'checking' && t('update.checking')}
+                {updateState === 'latest' && `${t('update.latest')} v${updateInfo?.current}`}
+                {updateState === 'error' && t('update.error')}
+                {updateState === 'idle' && t('nav.checkUpdate')}
+              </span>
+            </Button>
+          )}
+        </div>
+      )}
 
       <Button
         variant="ghost"

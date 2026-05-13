@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Edit3, Trash2, Archive, DollarSign,
-  AlertTriangle, Calendar, ShoppingBag, FileText,
+  AlertTriangle, FileText,
   PlusCircle, Wrench, Battery, ShieldCheck, Package,
-  Settings2,
+  Settings2, CheckCircle2, CircleHelp,
 } from 'lucide-react'
 import {
   ExpenseType,
@@ -15,8 +15,6 @@ import {
 } from '@/types'
 import { useItem, useItemMutations } from '@/hooks/useItems'
 import {
-  generateCostTrend,
-  generateDynamicCostTrend,
   formatCNY,
   formatDailyCost,
 } from '@/lib/calculations'
@@ -32,7 +30,6 @@ import {
   saveCostBenchmarkKeywords,
   type CostBenchmarkKeywords,
   type CostBenchmarkProfile,
-  type PhysicalFaultSignal,
   type UpgradeSignals,
 } from '@/lib/costBenchmarks'
 import { formatDate } from '@/lib/utils'
@@ -40,13 +37,9 @@ import { formatCurrencyAmount } from '@/lib/currency'
 import {
   buildDynamicSalvageAnalysis,
   inferSalvageProfile,
-  SALVAGE_PROFILE_RATES,
-  type SalvageProfile,
 } from '@/lib/dynamicSalvage'
-import { CostTrendChart } from '@/components/items/CostTrendChart'
 import { ComparisonCalculator } from '@/components/items/ComparisonCalculator'
-import { DynamicSalvagePanel } from '@/components/items/DynamicSalvagePanel'
-import { CategoryBadge, StatusBadge } from '@/components/ui/badge'
+import { CollapsibleSection } from '@/components/items/CollapsibleSection'
 import { Button } from '@/components/ui/button'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -69,7 +62,7 @@ type KeywordDraft = Record<CostBenchmarkProfile, string>
 export function ItemDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { t, categoryLabels, statusLabels, expenseTypeLabels } = useLanguage()
+  const { t, lang, categoryLabels, statusLabels, expenseTypeLabels } = useLanguage()
   const { item, loading, error, reload } = useItem(id!)
   const mutations = useItemMutations(reload)
 
@@ -84,16 +77,14 @@ export function ItemDetail() {
   const [expenseDate, setExpenseDate] = useState(new Date().toISOString().slice(0, 10))
   const [expenseDescription, setExpenseDescription] = useState('')
   const [countsInCost, setCountsInCost] = useState(true)
+  const [verdictHelpOpen, setVerdictHelpOpen] = useState(false)
   const [keywordSettingsOpen, setKeywordSettingsOpen] = useState(false)
-  const [benchmarkKeywords, setBenchmarkKeywords] = useState<CostBenchmarkKeywords>(() => loadCostBenchmarkKeywords())
+  const [benchmarkKeywords, setBenchmarkKeywords] = useState<CostBenchmarkKeywords>(
+    () => loadCostBenchmarkKeywords(),
+  )
   const [keywordDraft, setKeywordDraft] = useState<KeywordDraft>(() =>
     keywordsToDraft(loadCostBenchmarkKeywords()),
   )
-  const [salvageProfile, setSalvageProfile] = useState<SalvageProfile | null>(null)
-
-  useEffect(() => {
-    setSalvageProfile(null)
-  }, [id])
 
   if (loading) return <LoadingSkeleton />
   if (error || !item) {
@@ -106,29 +97,65 @@ export function ItemDetail() {
     )
   }
 
-  const trendData = generateCostTrend(item, 365)
   const expenses = item.expenses ?? []
   const expenseTotal = item.expense_total ?? 0
+
   const upgradeSignals = buildUpgradeSignals(item, benchmarkKeywords)
+  const decisionFrame = getDecisionFrame(item, upgradeSignals)
   const canConfigureBenchmark = item.status === 'active' && item.category === 'electronics'
   const isPeripheralOverService = upgradeSignals?.isOverService === true
+
+  const activeSalvageProfile = item.salvage_profile ?? inferSalvageProfile(item)
   const canShowDynamicSalvage = item.status === 'active' && item.category === 'electronics'
-  const activeSalvageProfile = salvageProfile ?? item.salvage_profile ?? inferSalvageProfile(item)
   const dynamicSalvage = canShowDynamicSalvage
     ? buildDynamicSalvageAnalysis(
         item,
         activeSalvageProfile,
-        salvageProfile ? SALVAGE_PROFILE_RATES[salvageProfile] : undefined,
       )
     : null
-  const dynamicTrendData = dynamicSalvage
-    ? generateDynamicCostTrend(
-        item,
-        365,
-        dynamicSalvage.annualRate,
-        dynamicSalvage.floorValue,
-      )
-    : undefined
+  const currentValue = estimateCurrentValue(item, dynamicSalvage)
+  const remainingValueRatio = item.purchase_price > 0
+    ? clamp(currentValue / item.purchase_price, 0, 1)
+    : 0
+  const valueLabelRatio = clamp(remainingValueRatio, 0.18, 0.82)
+  const recoveredValuePct = Math.round((1 - remainingValueRatio) * 100)
+  const spentToDate = Math.max(0, item.purchase_price + expenseTotal - currentValue)
+  const futureValue = dynamicSalvage?.futureResidual ?? currentValue
+  const thirtyDayDrop = estimateThirtyDayDrop(item, dynamicSalvage)
+  const detailVerdict = buildDetailVerdict({
+    item,
+    signals: upgradeSignals,
+    dynamicSalvage,
+    isPeripheralOverService,
+    thirtyDayDrop,
+    recoveredValuePct,
+    decisionFrame,
+    lang,
+  })
+  const replacementSummary = replacementSummaryText(
+    detailVerdict,
+    item,
+    thirtyDayDrop,
+    decisionFrame,
+    lang,
+  )
+  const verdictExplanation = verdictExplanationText(
+    item,
+    upgradeSignals,
+    dynamicSalvage,
+    thirtyDayDrop,
+    recoveredValuePct,
+    decisionFrame,
+    lang,
+  )
+  const purchaseSummary = purchaseInfoSummary(item, expenseTotal, lang)
+
+  // Collapsed summaries
+  const expenseSummary = expenses.length === 0
+    ? t('detail.noExpenses')
+    : expenseTotal > 0
+    ? `${expenses.length} 条 · ${t('detail.expenseImpactPrefix')} ${formatDailyCost(item.daily_cost - item.base_daily_cost)}${t('detail.perDay')}`
+    : `${expenses.length} 条 · ${t('detail.recordOnly')}`
 
   function openKeywordSettings() {
     setKeywordDraft(keywordsToDraft(benchmarkKeywords))
@@ -142,7 +169,6 @@ export function ItemDetail() {
         return result
       }, {} as CostBenchmarkKeywords),
     )
-
     saveCostBenchmarkKeywords(next)
     setBenchmarkKeywords(next)
     setKeywordSettingsOpen(false)
@@ -197,7 +223,7 @@ export function ItemDetail() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 animate-fade-in">
       {/* Back + actions */}
       <div className="flex items-center justify-between gap-3">
         <button
@@ -229,267 +255,175 @@ export function ItemDetail() {
           </div>
         )}
         {item.status !== 'active' && (
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => setDeleteOpen(true)}
-          >
+          <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
         )}
       </div>
 
-      {/* Header */}
-      <div>
-        <div className="flex items-start gap-3 mb-2">
-          <div className="flex-1 min-w-0">
-            <h1 className="font-serif text-2xl text-primary leading-tight">{item.name}</h1>
-          </div>
-          {item.is_overdue && (
-            <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-warn-bg border border-warn-border text-warn text-2xs font-medium shrink-0 mt-1">
-              <AlertTriangle className="h-3 w-3" />
-              {t('detail.overdue')}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <CategoryBadge
-            category={item.category as ItemCategory}
-            label={categoryLabels[item.category as ItemCategory]}
-          />
-          <StatusBadge
-            status={item.status as ItemStatus}
-            label={statusLabels[item.status as ItemStatus]}
-          />
-        </div>
-      </div>
-
-      {/* Hero cost stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className={cn(
-          'col-span-2 lg:col-span-1 rounded-xl border p-4',
-          isPeripheralOverService
-            ? 'border-warn-border bg-warn-bg'
-            : 'border-accent-muted bg-accent-bg',
-        )}>
-          <p className={cn(
-            'text-2xs uppercase tracking-widest mb-2',
-            isPeripheralOverService ? 'text-warn/80' : 'text-accent/60',
-          )}>{t('detail.totalDaily')}</p>
-          <div className="flex items-baseline gap-1">
-            <span className={cn(
-              'font-mono text-4xl font-bold leading-none',
-              isPeripheralOverService ? 'text-warn' : 'text-accent',
-            )}>
-              {formatDailyCost(item.daily_cost)}
-            </span>
-            <span className={cn(
-              'text-sm',
-              isPeripheralOverService ? 'text-warn/80' : 'text-accent/60',
-            )}>{t('detail.perDay')}</span>
-          </div>
-        </div>
-        <div className="rounded-xl border border-app-border bg-surface-2 p-4">
-          <p className="text-2xs text-muted uppercase tracking-widest mb-2">{t('detail.baseDaily')}</p>
-          <div className="flex items-baseline gap-1">
-            <span className="font-mono text-xl font-semibold text-primary">
-              {formatDailyCost(item.base_daily_cost)}
-            </span>
-            <span className="text-muted text-xs">{t('detail.perDay')}</span>
-          </div>
-        </div>
-        <div className="rounded-xl border border-app-border bg-surface-2 p-4">
-          <p className="text-2xs text-muted uppercase tracking-widest mb-2">{t('detail.expenses')}</p>
-          <p className="font-mono text-xl font-semibold text-primary">{formatCNY(expenseTotal, 0)}</p>
-        </div>
-        <div className="rounded-xl border border-app-border bg-surface-2 p-4">
-          <p className="text-2xs text-muted uppercase tracking-widest mb-2">{t('detail.daysOwned')}</p>
-          <div className="flex items-baseline gap-1">
-            <span className="font-mono text-xl font-semibold text-primary">{item.days_owned}</span>
-            <span className="text-muted text-sm">{t('detail.days')}</span>
-          </div>
-        </div>
-      </div>
-
-      {canConfigureBenchmark && (
-        upgradeSignals ? (
-          isPeripheralProfile(upgradeSignals.benchmark.profile) ? (
-            <PeripheralPanel
-              signals={upgradeSignals}
-              item={item}
-              profileLabel={profileLabel(upgradeSignals.benchmark.profile, t)}
-              onEditKeywords={openKeywordSettings}
-              t={t}
-            />
-          ) : (
-            <BenchmarkPanel
-              signals={upgradeSignals}
-              residualValue={item.residual_value ?? 0}
-              profileLabel={profileLabel(upgradeSignals.benchmark.profile, t)}
-              onEditKeywords={openKeywordSettings}
-              t={t}
-            />
-          )
-        ) : (
-          <BenchmarkUnmatchedPanel onEditKeywords={openKeywordSettings} t={t} />
-        )
-      )}
-
-      {dynamicSalvage && (
-        <DynamicSalvagePanel
-          analysis={dynamicSalvage}
-          onProfileChange={setSalvageProfile}
-        />
-      )}
-
-      {/* Cost trend chart */}
-      <div className="rounded-xl border border-app-border bg-surface-2 p-5">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="font-serif text-sm text-primary">{t('detail.costCurve')}</h2>
-            <p className="text-2xs text-muted mt-0.5">{t('detail.costCurveHint')}</p>
-          </div>
-        </div>
-        <CostTrendChart
-          data={trendData}
-          todayDay={item.days_owned}
-          compareData={dynamicTrendData}
-          compareLabel={dynamicTrendData ? t('salvage.chartLabel') : undefined}
-          referenceBand={
-            upgradeSignals
-              ? {
-                  min: upgradeSignals.benchmark.minDaily,
-                  max: upgradeSignals.benchmark.maxDaily,
-                  label: profileLabel(upgradeSignals.benchmark.profile, t),
-                }
-              : undefined
-          }
-        />
-        <div className="mt-4 rounded-lg bg-surface border border-app-border p-3">
-          <p className="text-xs text-muted">
-            {t('detail.costForecastPrefix')}{' '}
-            <span className="text-secondary font-medium">365</span>{' '}
-            {t('detail.costForecastMid')}{' '}
-            <span className="font-mono text-accent font-semibold">
-              {formatDailyCost(
-                (item.purchase_price + expenseTotal - (item.residual_value ?? 0)) / (item.days_owned + 365),
-              )}
-            </span>{' '}
-            {t('detail.costForecastSuffix')}
-          </p>
-        </div>
-      </div>
-
-      {/* Full info */}
-      <div className="rounded-xl border border-app-border bg-surface-2 p-5 space-y-4">
-        <h2 className="font-serif text-sm text-primary">{t('detail.info')}</h2>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-          <InfoRow icon={DollarSign} label={t('detail.purchasePrice')} value={formatCNY(item.purchase_price)} />
-          {item.purchase_currency !== 'CNY' && item.purchase_original_amount != null && (
-            <InfoRow
-              icon={DollarSign}
-              label={t('detail.fxOriginal')}
-              value={formatCurrencyAmount(item.purchase_original_amount, item.purchase_currency)}
-            />
-          )}
-          {item.purchase_currency !== 'CNY' && item.fx_rate != null && (
-            <InfoRow
-              icon={DollarSign}
-              label={t('detail.fxRate')}
-              value={`1 ${item.purchase_currency} = ${item.fx_rate.toFixed(6)} CNY · ${item.fx_rate_date ?? item.purchase_date} · ${item.fx_bank_fee ?? 0}%`}
-              colSpan
-            />
-          )}
-          <InfoRow
-            icon={DollarSign}
-            label={t('detail.residualValue')}
-            value={item.residual_value == null ? t('form.auto') : formatCNY(item.residual_value)}
-          />
-          <InfoRow icon={Wrench} label={t('detail.includedExpenses')} value={formatCNY(expenseTotal)} />
-          <InfoRow icon={DollarSign} label={t('detail.totalCost')} value={formatCNY(item.total_cost)} />
-          <InfoRow
-            icon={Calendar}
-            label={t('detail.purchaseDate')}
-            value={formatDate(item.purchase_date)}
-            colSpan
-          />
-          {item.expected_years && (
-            <InfoRow
-              icon={Calendar}
-              label={t('detail.expectedYears')}
-              value={`${item.expected_years} ${t('detail.yearUnit')}`}
-            />
-          )}
-          {item.purchase_channel && (
-            <InfoRow icon={ShoppingBag} label={t('detail.channel')} value={item.purchase_channel} />
-          )}
-          {item.retired_at && (
-            <InfoRow icon={Calendar} label={t('detail.retiredAt')} value={formatDate(item.retired_at)} />
-          )}
-          {item.sold_price != null && (
-            <InfoRow icon={DollarSign} label={t('detail.soldPrice')} value={formatCNY(item.sold_price)} />
-          )}
-        </div>
-        {item.notes && (
-          <div className="pt-3 border-t border-app-border">
-            <div className="flex items-start gap-2">
-              <FileText className="h-3.5 w-3.5 text-muted mt-0.5 shrink-0" />
-              <p className="text-sm text-muted leading-relaxed">{item.notes}</p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Later expenses */}
-      <div className="rounded-xl border border-app-border bg-surface-2 p-5 space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="font-serif text-sm text-primary">{t('detail.laterExpenses')}</h2>
-            <p className="text-2xs text-muted mt-0.5">{t('detail.laterExpensesHint')}</p>
-          </div>
-          <Button variant="outline" size="sm" onClick={() => setExpenseOpen(true)}>
-            <PlusCircle className="h-3.5 w-3.5" />
-            {t('detail.addExpense')}
-          </Button>
-        </div>
-
-        {expenses.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-app-border bg-surface/40 p-4 text-sm text-muted">
-            {t('detail.noExpenses')}
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {expenses.map(expense => (
-              <ExpenseRow
-                key={expense.id}
-                expense={expense}
-                expenseTypeLabel={expenseTypeLabels[expense.type]}
-                onDelete={() => handleDeleteExpense(expense.id)}
-                deleting={mutations.saving}
+      <section className="rounded-xl border border-app-border bg-surface-2 p-5">
+        <div className="grid gap-5 sm:grid-cols-[1fr_auto] sm:items-start">
+          <div className="min-w-0">
+            <h1 className="font-serif text-2xl leading-tight text-primary">
+              {item.name}
+            </h1>
+            <p className="mt-1 text-xs leading-relaxed text-muted">
+              {categoryLabels[item.category as ItemCategory]}
+              {' · '}
+              {statusLabels[item.status as ItemStatus]}
+              {' · '}
+              {item.days_owned} {t('detail.days')}
+              {item.purchase_channel ? ` · ${item.purchase_channel}` : ''}
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <StatusPill verdict={detailVerdict} />
+              <StatusHelp
+                open={verdictHelpOpen}
+                explanation={verdictExplanation}
+                onToggle={() => setVerdictHelpOpen(open => !open)}
+                lang={lang}
               />
-            ))}
-          </div>
-        )}
-
-        {expenseTotal > 0 && (
-          <div className="rounded-lg bg-surface border border-app-border p-3">
-            <p className="text-xs text-muted">
-              {t('detail.expenseImpactPrefix')}{' '}
-              <span className="font-mono text-secondary">
-                {formatDailyCost(item.daily_cost - item.base_daily_cost)}
-              </span>{' '}
-              {t('detail.expenseImpactSuffix')}
+              {item.is_overdue && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-warn-border px-2 py-1 text-2xs font-medium text-warn">
+                  <AlertTriangle className="h-3 w-3" />
+                  {t('detail.overdue')}
+                </span>
+              )}
+            </div>
+            <p className="mt-3 max-w-xl text-sm leading-relaxed text-secondary">
+              {detailVerdict.headline}
             </p>
           </div>
-        )}
-      </div>
 
-      {/* Comparison calculator — only for active items */}
-      {item.status === 'active' && (
-        <div className="rounded-xl border border-app-border bg-surface-2 p-5">
-          <ComparisonCalculator item={item} />
+          <div className="sm:text-right">
+            <p className="text-2xs uppercase tracking-widest text-muted">
+              {lang === 'zh' ? '平均每天' : 'Per day'}
+            </p>
+            <div className="mt-1 flex items-baseline gap-1 sm:justify-end">
+              <span className="font-mono text-4xl font-bold leading-none text-primary">
+                {formatDailyCost(item.daily_cost)}
+              </span>
+              <span className="text-sm text-muted">{t('detail.perDay')}</span>
+            </div>
+            {expenseTotal > 0 && (
+              <p className="mt-1 text-2xs text-muted">
+                {lang === 'zh' ? '纯购入成本' : 'Base (no extra expenses)'}{' '}
+                <span className="font-mono text-secondary">
+                  {formatDailyCost(item.base_daily_cost)} {t('detail.perDay')}
+                </span>
+              </p>
+            )}
+          </div>
         </div>
+
+        <div
+          className="mt-5 w-full"
+          style={{ maxWidth: 'calc(100vw - 4rem)' }}
+        >
+          <div className="relative h-2 rounded-full bg-surface-3">
+            <div
+              className="absolute inset-y-0 left-0 rounded-full bg-success/70"
+              style={{ width: `${remainingValueRatio * 100}%` }}
+            />
+            <div
+              className="absolute top-1/2 h-4 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary"
+              style={{ left: `${remainingValueRatio * 100}%` }}
+            />
+          </div>
+          <div className="relative mt-2 h-5 text-2xs text-muted">
+            <span className="absolute left-0 top-0">¥0</span>
+            <span
+              className="absolute top-0 -translate-x-1/2 whitespace-nowrap text-center text-secondary"
+              style={{ left: `${valueLabelRatio * 100}%` }}
+            >
+              {lang === 'zh' ? '当前' : 'Now'} {formatCNY(currentValue, 0)}
+            </span>
+            <span className="absolute right-0 top-0 text-right">
+              {formatCNY(item.purchase_price, 0)}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-2 sm:grid-cols-3">
+        <KeyMetric
+          label={lang === 'zh' ? '当前估值' : 'Current value'}
+          value={formatCNY(currentValue, 0)}
+          helper={currentValueHelper(item, dynamicSalvage, lang)}
+        />
+        <KeyMetric
+          label={lang === 'zh' ? '已花费' : 'Spent so far'}
+          value={formatCNY(spentToDate, 0)}
+          helper={spentHelperText(expenseTotal, lang)}
+        />
+        <KeyMetric
+          label={decisionFrame === 'economic'
+            ? (lang === 'zh' ? '一年后估值' : 'Value in one year')
+            : (lang === 'zh' ? '已使用' : 'Used for')}
+          value={decisionFrame === 'economic'
+            ? formatCNY(futureValue, 0)
+            : `${item.days_owned} ${t('detail.days')}`}
+          helper={decisionFrame === 'economic'
+            ? futureValueHelper(dynamicSalvage, lang)
+            : copy(lang, '外设主要看坏没坏', 'For peripherals, condition matters most')}
+        />
+      </section>
+
+      <CollapsibleSection
+        title={decisionFrame === 'economic'
+          ? (lang === 'zh' ? '更换信号' : 'Replacement signals')
+          : (lang === 'zh' ? '使用状态' : 'Use status')}
+        summary={replacementSummary}
+        defaultOpen={false}
+      >
+        <ReplacementSignalPanel
+          item={item}
+          signals={upgradeSignals}
+          dynamicSalvage={dynamicSalvage}
+          thirtyDayDrop={thirtyDayDrop}
+          recoveredValuePct={recoveredValuePct}
+          decisionFrame={decisionFrame}
+          currentValue={currentValue}
+          onEditKeywords={canConfigureBenchmark ? openKeywordSettings : undefined}
+          lang={lang}
+        />
+      </CollapsibleSection>
+
+      {item.status === 'active' && decisionFrame === 'economic' && (
+        <CollapsibleSection
+          title={lang === 'zh' ? '换购计算器' : 'Upgrade calculator'}
+          summary={lang === 'zh' ? '值不值得现在换？' : 'Is replacing it worth it now?'}
+          defaultOpen={false}
+        >
+          <ComparisonCalculator item={item} />
+        </CollapsibleSection>
       )}
+
+      <CollapsibleSection
+        title={lang === 'zh' ? '购入信息' : 'Purchase info'}
+        summary={purchaseSummary}
+        defaultOpen={false}
+        headerAction={
+          item.status === 'active' ? (
+            <Button variant="ghost" size="sm" onClick={() => setExpenseOpen(true)}>
+              <PlusCircle className="h-3.5 w-3.5" />
+              {t('detail.addExpense')}
+            </Button>
+          ) : undefined
+        }
+      >
+        <PurchaseInfoPanel
+          item={item}
+          expenses={expenses}
+          expenseTotal={expenseTotal}
+          expenseSummary={expenseSummary}
+          expenseTypeLabels={expenseTypeLabels}
+          onDeleteExpense={handleDeleteExpense}
+          deletingExpense={mutations.saving}
+          lang={lang}
+          t={t}
+        />
+      </CollapsibleSection>
 
       {/* Retire dialog */}
       <Dialog open={retireOpen} onOpenChange={setRetireOpen}>
@@ -516,12 +450,7 @@ export function ItemDetail() {
             <DialogClose asChild>
               <Button variant="ghost" size="sm">{t('dialog.cancel')}</Button>
             </DialogClose>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRetire}
-              disabled={mutations.saving}
-            >
+            <Button variant="outline" size="sm" onClick={handleRetire} disabled={mutations.saving}>
               {t('retire.submit')}
             </Button>
           </DialogFooter>
@@ -560,7 +489,8 @@ export function ItemDetail() {
                   {t('detail.sellHeld')} {item.days_owned} {t('detail.sellActualDaily')}{' '}
                   <span className="font-mono text-accent font-semibold">
                     {formatDailyCost(
-                      Math.max(0, item.purchase_price + expenseTotal - parseFloat(soldPrice)) / item.days_owned,
+                      Math.max(0, item.purchase_price + expenseTotal - parseFloat(soldPrice)) /
+                        item.days_owned,
                     )}{' '}
                     {t('detail.perDay')}
                   </span>
@@ -621,7 +551,6 @@ export function ItemDetail() {
                 />
               </div>
             </div>
-
             <div className="space-y-1.5">
               <Label htmlFor="expense-date">{t('expenseDialog.date')}</Label>
               <Input
@@ -633,7 +562,6 @@ export function ItemDetail() {
                 onChange={e => setExpenseDate(e.target.value)}
               />
             </div>
-
             <div className="space-y-1.5">
               <Label htmlFor="expense-description">{t('expenseDialog.description')}</Label>
               <Input
@@ -643,7 +571,6 @@ export function ItemDetail() {
                 onChange={e => setExpenseDescription(e.target.value)}
               />
             </div>
-
             <label className="flex items-start gap-3 rounded-lg border border-app-border bg-surface/60 p-3">
               <input
                 type="checkbox"
@@ -716,321 +643,759 @@ export function ItemDetail() {
   )
 }
 
+// ─── Helper sub-components ──────────────────────────────────────────────────
+
 type Translate = ReturnType<typeof useLanguage>['t']
+type LangCode = ReturnType<typeof useLanguage>['lang']
+type DynamicAnalysis = ReturnType<typeof buildDynamicSalvageAnalysis>
+type DetailTone = 'green' | 'yellow' | 'red' | 'neutral'
+type DecisionFrame = 'economic' | 'physical' | 'record'
 
-function BenchmarkPanel({
+interface DetailVerdict {
+  tone: DetailTone
+  label: string
+  headline: string
+}
+
+function copy(lang: LangCode, zh: string, en: string) {
+  return lang === 'zh' ? zh : en
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value))
+}
+
+function estimateCurrentValue(item: ItemWithStats, dynamicSalvage: DynamicAnalysis | null) {
+  if (item.status === 'sold' && item.sold_price != null) return Math.max(0, item.sold_price)
+  if (dynamicSalvage) return Math.max(0, dynamicSalvage.dynamicResidual)
+  return Math.max(0, item.residual_value ?? 0)
+}
+
+function estimateThirtyDayDrop(item: ItemWithStats, dynamicSalvage: DynamicAnalysis | null) {
+  if (dynamicSalvage) return dynamicSalvage.dropNext30
+  const futureDaily = Math.max(0, item.total_cost) / Math.max(1, item.days_owned + 30)
+  return Math.max(0, item.daily_cost - futureDaily)
+}
+
+function getDecisionFrame(
+  item: ItemWithStats,
+  signals: UpgradeSignals | null,
+): DecisionFrame {
+  if (item.category !== 'electronics') return 'record'
+
+  const profile = signals?.benchmark.profile
+  if (profile && (isPeripheralProfile(profile) || profile === 'wearable')) {
+    return 'physical'
+  }
+
+  if (item.purchase_price <= 1000) return 'physical'
+
+  return 'economic'
+}
+
+function buildDetailVerdict({
+  item,
   signals,
-  residualValue,
-  profileLabel,
-  onEditKeywords,
-  t,
+  dynamicSalvage,
+  isPeripheralOverService,
+  thirtyDayDrop,
+  recoveredValuePct,
+  decisionFrame,
+  lang,
 }: {
-  signals: UpgradeSignals
-  residualValue: number
-  profileLabel: string
-  onEditKeywords: () => void
-  t: Translate
-}) {
-  const { benchmark, latestRepair } = signals
-  const isFlat = signals.drop30 < 0.2
+  item: ItemWithStats
+  signals: UpgradeSignals | null
+  dynamicSalvage: DynamicAnalysis | null
+  isPeripheralOverService: boolean
+  thirtyDayDrop: number
+  recoveredValuePct: number
+  decisionFrame: DecisionFrame
+  lang: LangCode
+}): DetailVerdict {
+  if (item.status !== 'active') {
+    return {
+      tone: 'neutral',
+      label: copy(lang, '已落幕', 'Closed'),
+      headline: copy(
+        lang,
+        `这件资产已经画上句号，最终日均成本定格在 ${formatDailyCost(item.daily_cost)} 元/天。`,
+        `This asset is closed. Final daily cost locked at ${formatDailyCost(item.daily_cost)}/day.`,
+      ),
+    }
+  }
 
+  const hasFault = (signals?.physicalFaults?.length ?? 0) > 0
+  if (hasFault || signals?.latestRepair?.overResidual) {
+    return {
+      tone: 'red',
+      label: copy(lang, '建议更换', 'Consider replacing'),
+      headline: copy(
+        lang,
+        `每天 ${formatDailyCost(item.daily_cost)} 元，但维修或故障风险已经比继续摊薄成本更值得关注。`,
+        `At ${formatDailyCost(item.daily_cost)}/day, repair risk or reliability now outweighs squeezing cost lower.`,
+      ),
+    }
+  }
+
+  if (decisionFrame === 'physical') {
+    if (item.days_owned <= 90) {
+      return {
+        tone: 'green',
+        label: copy(lang, '正常使用', 'Normal'),
+        headline: copy(
+          lang,
+          '刚入手，成本曲线还陡——每天都在快速摊薄购入成本。',
+          'Recently purchased; the cost curve is still steep and falling fast every day.',
+        ),
+      }
+    }
+
+    if (item.is_overdue || isPeripheralOverService) {
+      return {
+        tone: 'yellow',
+        label: copy(lang, '超龄服役', 'Over lifespan'),
+        headline: copy(
+          lang,
+          '已经超出了当初设定的使用年限——继续用就是赚到，出现影响主力使用的故障再考虑更换。',
+          'Past the planned lifespan — every extra day is a bonus. Only replace when a fault actually gets in the way.',
+        ),
+      }
+    }
+
+    return {
+      tone: 'green',
+      label: copy(lang, '继续使用', 'Keep using'),
+      headline: copy(
+        lang,
+        '没有明显故障，继续用。日均成本是一把记账尺，不是换机的理由。',
+        'No obvious fault; keep using it. Daily cost is a ledger, not a replacement trigger.',
+      ),
+    }
+  }
+
+  if (decisionFrame === 'record') {
+    return {
+      tone: 'neutral',
+      label: copy(lang, '持续持有', 'Tracking'),
+      headline: copy(
+        lang,
+        '这类资产主要看使用价值；日均成本只是记录花费，不需要用它来判断去留。',
+        'This asset type is tracked for spend visibility; daily cost is not a replacement signal here.',
+      ),
+    }
+  }
+
+  if (item.is_overdue || isPeripheralOverService || dynamicSalvage?.isFlattening || thirtyDayDrop < 0.2) {
+    return {
+      tone: 'yellow',
+      label: copy(lang, '换机窗口', 'Upgrade window'),
+      headline: copy(
+        lang,
+        `已经把这台设备 ${recoveredValuePct}% 的价值用了回来，曲线趋平——每天再省约 ${formatDailyCost(thirtyDayDrop)} 元，换不换开始变成体验问题了。`,
+        `You have recovered ${recoveredValuePct}% of this device's value. The curve is flattening — keeping it saves about ${formatDailyCost(thirtyDayDrop)}/day now, so it's becoming an experience question.`,
+      ),
+    }
+  }
+
+  return {
+    tone: 'green',
+    label: copy(lang, '继续使用', 'Keep using'),
+    headline: copy(
+      lang,
+      `已经把 ${recoveredValuePct}% 的价值用了回来，但成本曲线仍在下行——再撑 30 天每天还能省约 ${formatDailyCost(thirtyDayDrop)} 元。`,
+      `You have recovered ${recoveredValuePct}% of this device's value, and the curve is still falling — holding 30 more days saves about ${formatDailyCost(thirtyDayDrop)}/day.`,
+    ),
+  }
+}
+
+function currentValueHelper(
+  item: ItemWithStats,
+  dynamicSalvage: DynamicAnalysis | null,
+  lang: LangCode,
+) {
+  if (dynamicSalvage) {
+    const pct = item.purchase_price > 0
+      ? Math.round((dynamicSalvage.dynamicResidual / item.purchase_price) * 100)
+      : 0
+    return copy(lang, `动态残值模型 · 约为购入价 ${pct}%`, `Dynamic model · ~${pct}% of purchase price`)
+  }
+  if (item.residual_value != null) return copy(lang, '来自手动填写的估值', 'From manual residual')
+  if (item.status === 'sold') return copy(lang, '来自实际转手价格', 'Actual sale price')
+  return copy(lang, '暂无估值，按 0 计算', 'No estimate; treated as 0')
+}
+
+function futureValueHelper(dynamicSalvage: DynamicAnalysis | null, lang: LangCode) {
+  if (!dynamicSalvage) return copy(lang, '无动态模型，按当前估值推算', 'No dynamic model; held at current estimate')
+  return copy(
+    lang,
+    `动态残值模型 · 年化折旧 ${(dynamicSalvage.annualRate * 100).toFixed(0)}%`,
+    `Dynamic model · ${(dynamicSalvage.annualRate * 100).toFixed(0)}% annual depreciation`,
+  )
+}
+
+function spentHelperText(expenseTotal: number, lang: LangCode) {
+  if (expenseTotal > 0) {
+    return copy(lang, '设备折价 + 后续维修支出', 'Value loss + follow-up expenses')
+  }
+  return copy(lang, '设备折价，暂无后续支出', 'Value loss; no follow-up expenses yet')
+}
+
+function replacementSummaryText(
+  verdict: DetailVerdict,
+  item: ItemWithStats,
+  thirtyDayDrop: number,
+  decisionFrame: DecisionFrame,
+  lang: LangCode,
+) {
+  if (verdict.tone === 'red') return verdict.label
+
+  if (decisionFrame === 'physical') {
+    if (item.days_owned <= 90) {
+      return copy(lang, '刚入手，成本快速下降中', 'Just purchased; cost falling fast')
+    }
+    if (verdict.tone === 'yellow') {
+      return copy(lang, '超龄服役，看物理状态而非成本', 'Over lifespan — watch condition, not cost')
+    }
+    return copy(lang, '状态良好，没有明显故障', 'In good shape; no obvious fault')
+  }
+
+  if (decisionFrame === 'record') {
+    return copy(lang, '仅记录花费，不提供换机建议', 'Spend tracker; no replacement advice')
+  }
+
+  if (verdict.tone === 'yellow') {
+    return copy(lang, '曲线趋平，继续等的收益有限', 'Curve flattening; diminishing returns')
+  }
+  return copy(
+    lang,
+    `成本还在下降，30 天约少 ${formatDailyCost(thirtyDayDrop)} 元`,
+    `Still falling — about ${formatDailyCost(thirtyDayDrop)}/day lower in 30 days`,
+  )
+}
+
+function verdictExplanationText(
+  item: ItemWithStats,
+  signals: UpgradeSignals | null,
+  dynamicSalvage: DynamicAnalysis | null,
+  thirtyDayDrop: number,
+  recoveredValuePct: number,
+  decisionFrame: DecisionFrame,
+  lang: LangCode,
+) {
+  const isSlowing = dynamicSalvage?.isFlattening || thirtyDayDrop < 0.2
+
+  if ((signals?.physicalFaults?.length ?? 0) > 0) {
+    return copy(
+      lang,
+      '记录里已经出现了影响使用的故障信号，判断权重从成本转移到了可靠性。',
+      'Usage-impacting fault signals are in the records, so reliability now outweighs cost savings.',
+    )
+  }
+
+  if (signals?.latestRepair?.overResidual) {
+    return copy(
+      lang,
+      `最近一次维修费 ${formatCNY(signals!.latestRepair!.amount, 0)} 已经超过当前估值 ${formatCNY(item.residual_value ?? 0, 0)}；维修风险大于继续摊薄成本的收益。`,
+      `The latest repair (${formatCNY(signals!.latestRepair!.amount, 0)}) exceeded the current value (${formatCNY(item.residual_value ?? 0, 0)}); repair risk outweighs the cost-saving benefit.`,
+    )
+  }
+
+  if (decisionFrame === 'physical') {
+    if (item.days_owned <= 90) {
+      return copy(
+        lang,
+        `外设主要看物理状态；这件物品才用了 ${item.days_owned} 天，日均成本还在快速下降中，不需要做换机判断。`,
+        `Peripherals are judged by physical condition; this item has only been used for ${item.days_owned} days, so daily cost is still falling fast — no replacement signal here.`,
+      )
+    }
+
+    return copy(
+      lang,
+      '外设主要看体验和物理状态；没有双击、断连、漂移或失灵等问题时，日均成本高低不构成换机理由。',
+      'Peripherals are judged by experience and physical condition; without issues like double-clicking, disconnects, drift, or failure, daily cost is not a replacement signal.',
+    )
+  }
+
+  if (decisionFrame === 'record') {
+    return copy(
+      lang,
+      '这类资产没有可靠的换机窗口模型；页面只记录花费、持有天数和后续支出，不做换机建议。',
+      'No reliable upgrade window model for this asset type — the page just tracks spend, holding days, and later expenses.',
+    )
+  }
+
+  if (isSlowing) {
+    return copy(
+      lang,
+      `已经用回了约 ${recoveredValuePct}% 的价值；再持有 30 天每天只能多省约 ${formatDailyCost(thirtyDayDrop)} 元，边际收益不大了——换不换主要看体验值不值。`,
+      `You have recovered about ${recoveredValuePct}% of the value; holding 30 more days saves about ${formatDailyCost(thirtyDayDrop)}/day — marginal upside is small, so it's mostly an experience question now.`,
+    )
+  }
+
+  return copy(
+    lang,
+    `再持有 30 天，日均成本大约还能下降 ${formatDailyCost(thirtyDayDrop)} 元——继续持有仍有明显的经济收益，不急着做换机决定。`,
+    `Holding 30 more days still lowers daily cost by about ${formatDailyCost(thirtyDayDrop)}/day — meaningful economic upside remains, so there is no urgency to replace.`,
+  )
+}
+
+function purchaseInfoSummary(item: ItemWithStats, expenseTotal: number, lang: LangCode) {
+  const channel = item.purchase_channel || copy(lang, '未记录渠道', 'No channel')
+  const expenseText = expenseTotal > 0
+    ? copy(lang, `后续支出 ${formatCNY(expenseTotal, 0)}`, `${formatCNY(expenseTotal, 0)} later expenses`)
+    : copy(lang, '无后续支出', 'No later expenses')
+  return `${channel} · ${formatDate(item.purchase_date)} · ${expenseText}`
+}
+
+function StatusPill({ verdict }: { verdict: DetailVerdict }) {
+  const Icon = verdict.tone === 'green' ? CheckCircle2 : verdict.tone === 'neutral' ? Package : AlertTriangle
   return (
-    <div className="rounded-xl border border-app-border bg-surface-2 p-5 space-y-4">
-      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:gap-4">
-        <div>
-          <h2 className="font-serif text-sm text-primary">
-            {t('benchmark.title')} / {t('signals.title')}
-          </h2>
-          <p className="mt-0.5 text-2xs text-muted">{t('benchmark.subtitle')}</p>
-        </div>
-        <div className="flex max-w-full flex-wrap items-center gap-2">
-          <span className="max-w-full rounded-full border border-border-strong px-2 py-1 text-2xs text-muted">
-            {t('benchmark.range', {
-              profile: profileLabel,
-              min: formatDailyCost(benchmark.minDaily),
-              max: formatDailyCost(benchmark.maxDaily),
-            })}
-          </span>
-          <Button variant="ghost" size="sm" onClick={onEditKeywords}>
-            <Settings2 className="h-3.5 w-3.5" />
-            {t('benchmark.configure')}
-          </Button>
-        </div>
-      </div>
+    <span className={cn(
+      'inline-flex items-center gap-1 rounded-full border px-2 py-1 text-2xs font-semibold',
+      verdict.tone === 'green' && 'border-success-border text-success',
+      verdict.tone === 'yellow' && 'border-warn-border text-warn',
+      verdict.tone === 'red' && 'border-danger-border text-danger',
+      verdict.tone === 'neutral' && 'border-app-border text-muted',
+    )}>
+      <Icon className="h-3 w-3" />
+      {verdict.label}
+    </span>
+  )
+}
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <SignalTile
-          title={benchmarkPositionText(signals.position, t)}
-          value={
-            signals.daysToMax && signals.daysToMax > 0
-              ? t('benchmark.toMax', {
-                  days: signals.daysToMax,
-                  target: formatDailyCost(benchmark.maxDaily),
-                })
-              : t('benchmark.already')
-          }
-          tone={signals.position === 'above' ? 'warn' : 'good'}
-        />
-        <SignalTile
-          title={t('signals.margin')}
-          value={t('signals.marginText', { amount: formatDailyCost(signals.drop30) })}
-          detail={isFlat ? t('signals.marginFlat') : t('signals.marginUseful')}
-          tone={isFlat ? 'muted' : 'good'}
-        />
-        <SignalTile
-          title={t('signals.repair')}
-          value={
-            latestRepair
-              ? latestRepair.overResidual
-                ? t('signals.repairOver', {
-                    amount: formatCNY(latestRepair.amount, 0),
-                    residual: formatCNY(residualValue, 0),
-                  })
-                : t('signals.repairOk', {
-                    amount: formatCNY(latestRepair.amount, 0),
-                    residual: formatCNY(residualValue, 0),
-                  })
-              : t('signals.repairNone')
-          }
-          tone={latestRepair?.overResidual ? 'warn' : 'muted'}
-        />
-        <SignalTile
-          title={t('signals.hiddenCost')}
-          value={t('signals.hiddenCostText')}
-          detail={t('signals.resaleText')}
-          tone="muted"
-        />
-      </div>
+function StatusHelp({
+  open,
+  explanation,
+  onToggle,
+  lang,
+}: {
+  open: boolean
+  explanation: string
+  onToggle: () => void
+  lang: LangCode
+}) {
+  return (
+    <span className="relative inline-flex">
+      <button
+        type="button"
+        aria-label={copy(lang, '查看判断依据', 'Show decision reason')}
+        aria-expanded={open}
+        onClick={onToggle}
+        className={cn(
+          'flex h-5 w-5 items-center justify-center rounded-full border border-app-border text-muted transition-colors',
+          'hover:border-border-strong hover:text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40',
+        )}
+      >
+        <CircleHelp className="h-3.5 w-3.5" />
+      </button>
+      {open && (
+        <span className="absolute left-0 top-7 z-20 w-64 rounded-lg border border-app-border bg-surface px-3 py-2 text-xs leading-relaxed text-secondary shadow-xl shadow-overlay/10">
+          {explanation}
+        </span>
+      )}
+    </span>
+  )
+}
+
+function KeyMetric({
+  label,
+  value,
+  helper,
+}: {
+  label: string
+  value: string
+  helper: string
+}) {
+  return (
+    <div className="rounded-lg border border-app-border bg-surface-2 px-4 py-3">
+      <p className="text-2xs uppercase tracking-widest text-muted">{label}</p>
+      <p className="mt-1 font-mono text-xl font-semibold leading-none text-primary">{value}</p>
+      <p className="mt-1 text-2xs leading-snug text-muted">{helper}</p>
     </div>
   )
 }
 
-function BenchmarkUnmatchedPanel({
+function ReplacementSignalPanel({
+  item,
+  signals,
+  dynamicSalvage,
+  thirtyDayDrop,
+  recoveredValuePct,
+  decisionFrame,
+  currentValue,
   onEditKeywords,
+  lang,
+}: {
+  item: ItemWithStats
+  signals: UpgradeSignals | null
+  dynamicSalvage: DynamicAnalysis | null
+  thirtyDayDrop: number
+  recoveredValuePct: number
+  decisionFrame: DecisionFrame
+  currentValue: number
+  onEditKeywords?: () => void
+  lang: LangCode
+}) {
+  const cost = costSignalCopy(item, dynamicSalvage, thirtyDayDrop, recoveredValuePct, decisionFrame, lang)
+  const experience = experienceSignalCopy(item, signals, currentValue, lang)
+
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <InsightBlock
+          label={copy(lang, '成本走势', 'Cost trend')}
+          conclusion={cost.conclusion}
+          explanation={cost.explanation}
+          tone={cost.tone}
+        />
+        <InsightBlock
+          label={copy(lang, '使用体验', 'Use experience')}
+          conclusion={experience.conclusion}
+          explanation={experience.explanation}
+          tone={experience.tone}
+        />
+      </div>
+
+      {onEditKeywords && (
+        <div className="flex flex-col gap-2 rounded-lg border border-app-border bg-surface/40 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs leading-relaxed text-muted">
+            {copy(
+              lang,
+              '设备分类影响参考区间和故障提示；识别不准可以调整关键词。',
+              'Device classification affects reference bands and fault hints. Adjust keywords if it looks wrong.',
+            )}
+          </p>
+          <Button variant="ghost" size="sm" onClick={onEditKeywords}>
+            <Settings2 className="h-3.5 w-3.5" />
+            {copy(lang, '调整分类', 'Tune')}
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function costSignalCopy(
+  item: ItemWithStats,
+  dynamicSalvage: DynamicAnalysis | null,
+  thirtyDayDrop: number,
+  recoveredValuePct: number,
+  decisionFrame: DecisionFrame,
+  lang: LangCode,
+) {
+  if (decisionFrame === 'physical') {
+    if (item.days_owned <= 90) {
+      return {
+        tone: 'green' as DetailTone,
+        conclusion: copy(lang, '成本快速下降中', 'Falling fast'),
+        explanation: copy(
+          lang,
+          '越用越便宜的阶段——每天都在摊薄购入成本，不是换机信号。',
+          'Still in the steep part of the curve, getting cheaper every day. Not a replacement signal.',
+        ),
+      }
+    }
+
+    return {
+      tone: 'neutral' as DetailTone,
+      conclusion: copy(lang, '成本仅供参考', 'Cost for reference only'),
+      explanation: copy(
+        lang,
+        '外设用不用继续用，主要看体验和物理状态，不靠成本曲线来判断。',
+        'For peripherals, replacement depends on condition and experience, not the cost curve.',
+      ),
+    }
+  }
+
+  if (decisionFrame === 'record') {
+    return {
+      tone: 'neutral' as DetailTone,
+      conclusion: copy(lang, '记录花费即可', 'Track spend only'),
+      explanation: copy(
+        lang,
+        '这类资产没有可靠的换机窗口模型，日均成本只做参考记录。',
+        'No upgrade-window model applies to this asset type.',
+      ),
+    }
+  }
+
+  if (dynamicSalvage?.isFlattening || thirtyDayDrop < 0.2) {
+    return {
+      tone: 'yellow' as DetailTone,
+      conclusion: copy(lang, '曲线趋平，摊薄空间有限', 'Curve flattening'),
+      explanation: copy(
+        lang,
+        `已经用回约 ${recoveredValuePct}% 的价值；再撑 30 天每天只能多省约 ${formatDailyCost(thirtyDayDrop)} 元，继续等的经济收益不大了。`,
+        `You have recovered about ${recoveredValuePct}% of the value; holding 30 more days only saves about ${formatDailyCost(thirtyDayDrop)}/day — the economic upside is small now.`,
+      ),
+    }
+  }
+
+  return {
+    tone: 'green' as DetailTone,
+    conclusion: copy(lang, '成本仍在快速摊薄', 'Still getting cheaper'),
+    explanation: copy(
+      lang,
+      `已经用回约 ${recoveredValuePct}% 的价值，再撑 30 天每天还能省约 ${formatDailyCost(thirtyDayDrop)} 元——继续持有仍有明显经济收益。`,
+      `You have recovered about ${recoveredValuePct}% of the value; holding 30 more days still saves about ${formatDailyCost(thirtyDayDrop)}/day — meaningful upside remaining.`,
+    ),
+  }
+}
+
+function experienceSignalCopy(
+  item: ItemWithStats,
+  signals: UpgradeSignals | null,
+  currentValue: number,
+  lang: LangCode,
+) {
+  const faults = signals?.physicalFaults ?? []
+  if (faults.length > 0) {
+    return {
+      tone: 'red' as DetailTone,
+      conclusion: copy(lang, '出现了影响使用的故障', 'Usage fault detected'),
+      explanation: copy(
+        lang,
+        `记录里出现了 ${faults.slice(0, 2).map(fault => fault.keyword).join('、')}。影响主力使用的话，没必要再为了摊薄成本而将就。`,
+        `Records mention ${faults.slice(0, 2).map(fault => fault.keyword).join(', ')}. If it affects daily use, there is no reason to keep waiting for the cost to fall.`,
+      ),
+    }
+  }
+
+  if (signals?.latestRepair?.overResidual) {
+    return {
+      tone: 'red' as DetailTone,
+      conclusion: copy(lang, '维修费超过了当前估值', 'Repair exceeds current value'),
+      explanation: copy(
+        lang,
+        `最近一次计入成本的维修是 ${formatCNY(signals.latestRepair.amount, 0)}，已经超过当前估值 ${formatCNY(currentValue, 0)}。修不如换，从经济角度已经很清晰。`,
+        `The latest cost-bearing repair was ${formatCNY(signals.latestRepair.amount, 0)}, above the current value of ${formatCNY(currentValue, 0)}. The economics are clear.`,
+      ),
+    }
+  }
+
+  if (item.is_overdue || signals?.isOverService) {
+    return {
+      tone: 'yellow' as DetailTone,
+      conclusion: copy(lang, '超龄服役，留意状态', 'Over lifespan — watch condition'),
+      explanation: copy(
+        lang,
+        '超出了当初设定的使用年限，已经是赚到的时间了。体验还稳定就继续用；一旦影响主力使用，就该谢幕了。',
+        'It has outlived the planned lifespan — every day is a bonus now. Keep it while experience is stable; replace when it starts getting in the way.',
+      ),
+    }
+  }
+
+  if (signals?.latestRepair) {
+    return {
+      tone: 'yellow' as DetailTone,
+      conclusion: copy(lang, '出现过维修记录', 'Had a repair'),
+      explanation: copy(
+        lang,
+        `最近一次计入成本的维修是 ${formatCNY(signals.latestRepair.amount, 0)}。如果同类问题反复出现，维修风险比日均成本更值得优先考虑。`,
+        `The latest cost-bearing repair was ${formatCNY(signals.latestRepair.amount, 0)}. If the same issue recurs, repair risk should take priority over cost savings.`,
+      ),
+    }
+  }
+
+  return {
+    tone: 'green' as DetailTone,
+    conclusion: copy(lang, '状态良好', 'In good shape'),
+    explanation: copy(
+      lang,
+      '没有记在账上的维修负担。续航、性能和可靠性还在接受范围内，继续持有是最省的方案。',
+      'No cost-bearing repair pressure. If battery, speed, and reliability are still acceptable, holding on is the lowest-cost path.',
+    ),
+  }
+}
+
+function InsightBlock({
+  label,
+  conclusion,
+  explanation,
+  tone,
+}: {
+  label: string
+  conclusion: string
+  explanation: string
+  tone: DetailTone
+}) {
+  return (
+    <div className={cn(
+      'rounded-lg border bg-surface/50 px-4 py-3',
+      tone === 'green' && 'border-success-border',
+      tone === 'yellow' && 'border-warn-border',
+      tone === 'red' && 'border-danger-border',
+      tone === 'neutral' && 'border-app-border',
+    )}>
+      <p className={cn(
+        'text-2xs uppercase tracking-widest',
+        tone === 'green' && 'text-success',
+        tone === 'yellow' && 'text-warn',
+        tone === 'red' && 'text-danger',
+        tone === 'neutral' && 'text-muted',
+      )}>
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-semibold leading-snug text-primary">{conclusion}</p>
+      <p className="mt-1 text-xs leading-relaxed text-muted">{explanation}</p>
+    </div>
+  )
+}
+
+function PurchaseInfoPanel({
+  item,
+  expenses,
+  expenseTotal,
+  expenseSummary,
+  expenseTypeLabels,
+  onDeleteExpense,
+  deletingExpense,
+  lang,
   t,
 }: {
-  onEditKeywords: () => void
+  item: ItemWithStats
+  expenses: ItemExpense[]
+  expenseTotal: number
+  expenseSummary: string
+  expenseTypeLabels: Record<ExpenseType, string>
+  onDeleteExpense: (expenseId: string) => void
+  deletingExpense: boolean
+  lang: LangCode
   t: Translate
 }) {
   return (
-    <div className="rounded-xl border border-app-border bg-surface-2 p-5">
-      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
-        <div>
-          <h2 className="font-serif text-sm text-primary">{t('benchmark.unmatchedTitle')}</h2>
-          <p className="mt-0.5 text-2xs text-muted">{t('benchmark.unmatchedText')}</p>
+    <div className="space-y-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <InsightBlock
+          label={copy(lang, '购入信息', 'Purchase info')}
+          conclusion={`${item.purchase_channel || copy(lang, '未录入渠道', 'Channel not set')} · ${formatDate(item.purchase_date)}`}
+          explanation={purchaseDetailText(item, lang)}
+          tone="neutral"
+        />
+        <InsightBlock
+          label={copy(lang, '后续支出', 'Follow-up expenses')}
+          conclusion={expenses.length > 0
+            ? `${expenses.length} ${copy(lang, '条', 'entries')} · ${formatCNY(expenseTotal, 0)}`
+            : copy(lang, '暂无后续支出', 'None recorded')}
+          explanation={expenseSummary}
+          tone={expenseTotal > 0 ? 'yellow' : 'neutral'}
+        />
+      </div>
+
+      {item.notes && (
+        <div className="flex items-start gap-2 rounded-lg border border-app-border bg-surface/40 px-3 py-2">
+          <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted" />
+          <p className="text-xs leading-relaxed text-muted">{item.notes}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={onEditKeywords}>
-          <Settings2 className="h-3.5 w-3.5" />
-          {t('benchmark.configure')}
+      )}
+
+      {item.purchase_currency !== 'CNY' &&
+        item.purchase_original_amount != null &&
+        item.fx_rate != null && (
+          <div className="rounded-lg border border-app-border bg-surface/40 px-3 py-2">
+            <p className="text-xs leading-relaxed text-muted">
+              {formatCurrencyAmount(item.purchase_original_amount, item.purchase_currency)}
+              {' · '}1 {item.purchase_currency} = {item.fx_rate.toFixed(4)} CNY
+              {item.fx_rate_date ? ` · ${item.fx_rate_date}` : ''}
+              {item.fx_bank_fee ? ` · 手续费 ${item.fx_bank_fee}%` : ''}
+            </p>
+          </div>
+        )}
+
+      {expenses.length > 0 && (
+        <div className="space-y-2">
+          {expenses.map(expense => (
+            <ExpenseRow
+              key={expense.id}
+              expense={expense}
+              expenseTypeLabel={expenseTypeLabels[expense.type]}
+              onDelete={() => onDeleteExpense(expense.id)}
+              deleting={deletingExpense}
+            />
+          ))}
+        </div>
+      )}
+
+      {expenses.length === 0 && (
+        <div className="rounded-lg border border-dashed border-app-border bg-surface/30 p-4 text-sm text-muted">
+          {t('detail.noExpenses')}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function purchaseDetailText(item: ItemWithStats, lang: LangCode) {
+  const parts = [
+    copy(lang, `购入价 ${formatCNY(item.purchase_price, 0)}`, `Purchased for ${formatCNY(item.purchase_price, 0)}`),
+  ]
+  if (item.expected_years) {
+    parts.push(copy(lang, `原计划使用 ${item.expected_years} 年`, `Planned for ${item.expected_years} years`))
+  }
+  if (item.retired_at) parts.push(copy(lang, `退役于 ${formatDate(item.retired_at)}`, `Retired on ${formatDate(item.retired_at)}`))
+  if (item.sold_price != null) parts.push(copy(lang, `转手价 ${formatCNY(item.sold_price, 0)}`, `Sold for ${formatCNY(item.sold_price, 0)}`))
+  return parts.join(lang === 'zh' ? '。' : '. ')
+}
+
+function ExpenseRow({
+  expense,
+  expenseTypeLabel,
+  onDelete,
+  deleting,
+}: {
+  expense: ItemExpense
+  expenseTypeLabel: string
+  onDelete: () => void
+  deleting: boolean
+}) {
+  const { t } = useLanguage()
+  const Icon = expenseIcon(expense.type)
+
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-app-border bg-surface/50 px-3 py-3">
+      <div className="flex min-w-0 items-start gap-3">
+        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-app-border bg-surface-2">
+          <Icon className="h-4 w-4 text-muted" />
+        </div>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-secondary">{expenseTypeLabel}</span>
+            {!expense.counts_in_cost && (
+              <span className="rounded-full border border-app-border px-2 py-0.5 text-2xs text-muted">
+                {t('detail.recordOnly')}
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 text-xs text-muted">
+            {formatDate(expense.expense_date)}
+            {expense.description ? ` · ${expense.description}` : ''}
+          </p>
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <span className={cn(
+          'font-mono text-sm font-semibold',
+          expense.counts_in_cost ? 'text-primary' : 'text-muted',
+        )}>
+          {formatCNY(expense.amount, 0)}
+        </span>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onDelete}
+          disabled={deleting}
+          aria-label={t('detail.expenseAriaDelete')}
+          className="h-8 w-8"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
         </Button>
       </div>
     </div>
   )
 }
 
-function PeripheralPanel({
-  signals,
-  item,
-  profileLabel: label,
-  onEditKeywords,
-  t,
-}: {
-  signals: UpgradeSignals
-  item: ItemWithStats
-  profileLabel: string
-  onEditKeywords: () => void
-  t: Translate
-}) {
-  const { benchmark, isOverService, overServiceDays, physicalFaults = [] } = signals
-  const expectedDays = item.expected_years ? item.expected_years * 365 : null
-  const progress = expectedDays ? Math.min(1, item.days_owned / expectedDays) : null
-  const peripheralProfile = benchmark.profile as 'gamepad' | 'mouse' | 'keyboard'
-
-  return (
-    <div className="rounded-xl border border-app-border bg-surface-2 p-5 space-y-4">
-      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:gap-4">
-        <div>
-          <h2 className="font-serif text-sm text-primary">
-            {t('peripheral.title')}
-          </h2>
-          <p className="mt-0.5 text-2xs text-muted">{t('peripheral.subtitle')}</p>
-        </div>
-        <div className="flex max-w-full flex-wrap items-center gap-2">
-          <span className="max-w-full rounded-full border border-border-strong px-2 py-1 text-2xs text-muted">
-            {t('benchmark.range', {
-              profile: label,
-              min: formatDailyCost(benchmark.minDaily),
-              max: formatDailyCost(benchmark.maxDaily),
-            })}
-          </span>
-          <Button variant="ghost" size="sm" onClick={onEditKeywords}>
-            <Settings2 className="h-3.5 w-3.5" />
-            {t('benchmark.configure')}
-          </Button>
-        </div>
-      </div>
-
-      {/* Lifespan hourglass */}
-      <div className={cn(
-        'rounded-lg border p-4',
-        isOverService
-          ? 'border-warn-border bg-warn-bg'
-          : expectedDays
-          ? 'border-app-border bg-surface/40'
-          : 'border-app-border border-dashed bg-surface/20',
-      )}>
-        <div className="flex items-center justify-between gap-3 mb-2">
-          <p className={cn(
-            'text-2xs font-medium uppercase tracking-widest',
-            isOverService ? 'text-warn' : 'text-muted',
-          )}>
-            {t('peripheral.lifespanProgress')}
-          </p>
-          {isOverService && overServiceDays != null && (
-            <span className="rounded-full bg-warn-bg-hover border border-warn-border px-2 py-0.5 text-2xs font-semibold text-warn animate-pulse">
-              {t('peripheral.bonusDays', { days: overServiceDays })}
-            </span>
-          )}
-        </div>
-
-        {expectedDays != null && progress != null ? (
-          <>
-            {/* Progress bar */}
-            <div className="h-2 w-full bg-surface-3 rounded-full overflow-hidden mb-2">
-              <div
-                className={cn(
-                  'h-full rounded-full transition-all duration-700',
-                  isOverService
-                    ? 'bg-warn'
-                    : 'bg-accent/60',
-                )}
-                style={{ width: `${Math.min(100, progress * 100).toFixed(1)}%` }}
-              />
-            </div>
-            <p className={cn(
-              'text-sm',
-              isOverService ? 'text-warn font-medium' : 'text-muted',
-            )}>
-              {isOverService
-                ? t('peripheral.overServiceDetail', { days: overServiceDays ?? 0 })
-                : t('peripheral.normalServiceDetail', {
-                    days: Math.max(0, Math.round(expectedDays - item.days_owned)),
-                  })}
-            </p>
-          </>
-        ) : (
-          <>
-            <p className="text-sm text-muted">{t('peripheral.noExpectedLife')}</p>
-            <p className="text-2xs text-muted mt-1">{t('peripheral.noExpectedLifeHint')}</p>
-          </>
-        )}
-      </div>
-
-      {/* Over-service / normal service signal tiles */}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <SignalTile
-          title={benchmarkPositionText(signals.position, t)}
-          value={
-            signals.daysToMax && signals.daysToMax > 0
-              ? t('benchmark.toMax', {
-                  days: signals.daysToMax,
-                  target: formatDailyCost(benchmark.maxDaily),
-                })
-              : t('benchmark.already')
-          }
-          tone={signals.position === 'above' ? 'warn' : isOverService ? 'gold' : 'good'}
-        />
-        <SignalTile
-          title={
-            isOverService
-              ? t('peripheral.overService')
-              : expectedDays
-              ? t('peripheral.normalService')
-              : t('peripheral.noExpectedLife')
-          }
-          value={
-            isOverService && overServiceDays != null
-              ? t('peripheral.overServiceDetail', { days: overServiceDays })
-              : expectedDays
-              ? t('peripheral.normalServiceDetail', {
-                  days: Math.max(0, Math.round(expectedDays - item.days_owned)),
-                })
-              : t('peripheral.noExpectedLifeHint')
-          }
-          tone={isOverService ? 'gold' : 'muted'}
-        />
-      </div>
-
-      {/* Physical fault red lines */}
-      <div className="rounded-lg border border-app-border bg-surface/40 p-4 space-y-3">
-        <div>
-          <p className="text-2xs font-medium uppercase tracking-widest text-danger/80">
-            {t('peripheral.faultTitle')}
-          </p>
-          <p className="text-2xs text-muted mt-0.5">
-            {t('peripheral.faultSubtitle')}
-          </p>
-        </div>
-
-        {/* Default replacement hint */}
-        <div className="rounded-md border border-app-border bg-surface-2/60 px-3 py-2">
-          <p className="text-xs text-muted leading-relaxed">
-            {t(`peripheral.replaceHint.${peripheralProfile}` as const)}
-          </p>
-        </div>
-
-        {physicalFaults.length > 0 ? (
-          <div className="space-y-2">
-            <p className="text-xs text-danger font-medium">
-              ⚠ {t('peripheral.faultDetected')}
-            </p>
-            {physicalFaults.map((fault, idx) => (
-              <FaultSignalRow key={`${fault.keyword}-${idx}`} fault={fault} t={t} />
-            ))}
-          </div>
-        ) : (
-          <p className="text-xs text-muted">
-            ✓ {t('peripheral.faultNone')}
-          </p>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function FaultSignalRow({
-  fault,
-  t,
-}: {
-  fault: PhysicalFaultSignal
-  t: Translate
-}) {
-  return (
-    <div className="flex items-start gap-2 rounded-md border border-danger-border bg-danger-bg px-3 py-2">
-      <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-danger shrink-0" />
-      <div className="min-w-0">
-        <span className="text-xs text-danger font-medium">{fault.keyword}</span>
-        <span className="text-2xs text-muted ml-2">
-          {fault.source === 'expense'
-            ? t('peripheral.faultSource.expense')
-            : t('peripheral.faultSource.notes')}
-        </span>
-        {fault.detail && (
-          <p className="text-2xs text-muted mt-0.5 truncate">{fault.detail}</p>
-        )}
-      </div>
-    </div>
-  )
-}
-
 function BenchmarkKeywordDialog({
-  open,
-  draft,
-  onOpenChange,
-  onChange,
-  onReset,
-  onSave,
-  t,
+  open, draft, onOpenChange, onChange, onReset, onSave, t,
 }: {
   open: boolean
   draft: KeywordDraft
@@ -1048,8 +1413,6 @@ function BenchmarkKeywordDialog({
         </DialogHeader>
         <DialogBody className="space-y-4">
           <p className="text-sm text-muted">{t('benchmark.keywordHint')}</p>
-
-          {/* Main device profiles */}
           <div className="space-y-3">
             <p className="text-xs font-medium text-muted uppercase tracking-widest">
               {t('benchmark.keywordGroupMain')}
@@ -1071,8 +1434,6 @@ function BenchmarkKeywordDialog({
               ))}
             </div>
           </div>
-
-          {/* Peripheral profiles */}
           <div className="space-y-3">
             <p className="text-xs font-medium text-warn/80 uppercase tracking-widest">
               {t('benchmark.keywordGroupPeripheral')}
@@ -1094,7 +1455,6 @@ function BenchmarkKeywordDialog({
               ))}
             </div>
           </div>
-
           <div className="rounded-lg border border-app-border bg-surface/50 p-3">
             <p className="text-xs text-muted">{t('benchmark.keywordHelp')}</p>
           </div>
@@ -1115,49 +1475,6 @@ function BenchmarkKeywordDialog({
       </DialogContent>
     </Dialog>
   )
-}
-
-function SignalTile({
-  title,
-  value,
-  detail,
-  tone,
-}: {
-  title: string
-  value: string
-  detail?: string
-  tone: 'good' | 'warn' | 'muted' | 'gold'
-}) {
-  return (
-    <div className={cn(
-      'rounded-lg border px-3 py-3',
-      tone === 'good' && 'border-success-border bg-success-bg',
-      tone === 'warn' && 'border-warn-border bg-warn-bg',
-      tone === 'muted' && 'border-app-border bg-surface/40',
-      tone === 'gold' && 'border-warn-border bg-warn-bg',
-    )}>
-      <p className={cn(
-        'text-2xs font-medium uppercase tracking-widest',
-        tone === 'good' && 'text-success',
-        tone === 'warn' && 'text-warn',
-        tone === 'muted' && 'text-muted',
-        tone === 'gold' && 'text-warn',
-      )}>
-        {title}
-      </p>
-      <p className={cn(
-        'mt-1 text-sm',
-        tone === 'gold' ? 'text-warn' : 'text-secondary',
-      )}>{value}</p>
-      {detail && <p className="mt-1 text-2xs text-muted">{detail}</p>}
-    </div>
-  )
-}
-
-function benchmarkPositionText(position: UpgradeSignals['position'], t: Translate) {
-  if (position === 'above') return t('benchmark.above')
-  if (position === 'below') return t('benchmark.below')
-  return t('benchmark.within')
 }
 
 function profileLabel(profile: CostBenchmarkProfile, t: Translate) {
@@ -1184,86 +1501,6 @@ function parseKeywordDraft(value: string) {
     .filter(Boolean)
 }
 
-function InfoRow({
-  icon: Icon,
-  label,
-  value,
-  colSpan,
-}: {
-  icon: React.ElementType
-  label: string
-  value: string
-  colSpan?: boolean
-}) {
-  return (
-    <div className={cn(colSpan && 'col-span-2')}>
-      <div className="flex items-center gap-1.5 mb-0.5">
-        <Icon className="h-3 w-3 text-muted" />
-        <span className="text-2xs text-muted uppercase tracking-widest">{label}</span>
-      </div>
-      <p className="text-sm text-secondary">{value}</p>
-    </div>
-  )
-}
-
-function ExpenseRow({
-  expense,
-  expenseTypeLabel,
-  onDelete,
-  deleting,
-}: {
-  expense: ItemExpense
-  expenseTypeLabel: string
-  onDelete: () => void
-  deleting: boolean
-}) {
-  const { t } = useLanguage()
-  const Icon = expenseIcon(expense.type)
-
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-app-border bg-surface/50 px-3 py-3">
-      <div className="flex items-start gap-3 min-w-0">
-        <div className="mt-0.5 h-8 w-8 rounded-lg bg-surface-2 border border-app-border flex items-center justify-center shrink-0">
-          <Icon className="h-4 w-4 text-muted" />
-        </div>
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm text-secondary">{expenseTypeLabel}</span>
-            {!expense.counts_in_cost && (
-              <span className="rounded-full border border-app-border px-2 py-0.5 text-2xs text-muted">
-                {t('detail.recordOnly')}
-              </span>
-            )}
-          </div>
-          <p className="mt-0.5 text-xs text-muted">
-            {formatDate(expense.expense_date)}
-            {expense.description ? ` · ${expense.description}` : ''}
-          </p>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2 shrink-0">
-        <span className={cn(
-          'font-mono text-sm font-semibold',
-          expense.counts_in_cost ? 'text-primary' : 'text-muted',
-        )}>
-          {formatCNY(expense.amount, 0)}
-        </span>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onDelete}
-          disabled={deleting}
-          aria-label={t('detail.expenseAriaDelete')}
-          className="h-8 w-8"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </Button>
-      </div>
-    </div>
-  )
-}
-
 function expenseIcon(type: ExpenseType) {
   if (type === 'battery') return Battery
   if (type === 'warranty') return ShieldCheck
@@ -1273,16 +1510,19 @@ function expenseIcon(type: ExpenseType) {
 
 function LoadingSkeleton() {
   return (
-    <div className="space-y-6 animate-pulse">
+    <div className="space-y-4 animate-pulse">
       <div className="h-4 w-16 bg-surface-3 rounded" />
       <div className="space-y-2">
         <div className="h-7 w-2/3 bg-surface-3 rounded" />
         <div className="h-4 w-1/4 bg-surface-3 rounded" />
       </div>
-      <div className="grid grid-cols-3 gap-3">
-        <div className="col-span-3 sm:col-span-1 h-24 bg-surface-2 rounded-xl border border-app-border" />
-        <div className="h-24 bg-surface-2 rounded-xl border border-app-border" />
-        <div className="h-24 bg-surface-2 rounded-xl border border-app-border" />
+      <div className="space-y-1.5">
+        <div className="h-20 bg-surface-2 rounded-xl border border-app-border" />
+        <div className="grid grid-cols-4 gap-1">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-12 bg-surface-2 rounded-lg border border-app-border" />
+          ))}
+        </div>
       </div>
       <div className="h-64 bg-surface-2 rounded-xl border border-app-border" />
     </div>

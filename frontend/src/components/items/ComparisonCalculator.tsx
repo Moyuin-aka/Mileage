@@ -1,426 +1,246 @@
 import { useState } from 'react'
-import { Archive, ArrowRight, DollarSign, TrendingDown } from 'lucide-react'
+import { Archive, DollarSign } from 'lucide-react'
 import { ItemWithStats } from '@/types'
 import {
-  calculateMarginalDailyCost,
   calculateDynamicSalvageValue,
-  generateMarginalCostTrend,
   formatCNY,
   formatDailyCost,
 } from '@/lib/calculations'
 import {
-  buildUpgradeVerdict,
-  DecisionPreference,
-  loadDecisionPreference,
-} from '@/lib/decisionVerdict'
-import {
   inferSalvageProfile,
   SALVAGE_PROFILE_RATES,
-  type SalvageProfile,
 } from '@/lib/dynamicSalvage'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { CostTrendChart } from './CostTrendChart'
-import { DecisionVerdictPanel } from './DecisionVerdictPanel'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useLanguage } from '@/i18n'
 import { cn } from '@/lib/utils'
-import type { TranslationKey } from '@/i18n/translations'
 
 interface ComparisonCalculatorProps {
   item: ItemWithStats
 }
 
 type DispositionMode = 'sell' | 'keep'
-
-const SALVAGE_PROFILE_LABEL_KEYS: Record<SalvageProfile, TranslationKey> = {
-  valueKeeper: 'salvage.profile.valueKeeper',
-  steady: 'salvage.profile.steady',
-  fastDrop: 'salvage.profile.fastDrop',
-}
+type LangCode = ReturnType<typeof useLanguage>['lang']
+const HORIZON_DAYS = 730
+const HORIZON_YEARS = 2
 
 export function ComparisonCalculator({ item }: ComparisonCalculatorProps) {
-  const { t } = useLanguage()
+  const { lang } = useLanguage()
   const [newPrice, setNewPrice] = useState('')
-  const [newResidual, setNewResidual] = useState('')
-  const [newSalvageProfile, setNewSalvageProfile] = useState<SalvageProfile>('steady')
   const [dispositionMode, setDispositionMode] = useState<DispositionMode>('sell')
-  const [hassleDaily, setHassleDaily] = useState('0')
-  const [spareWtpDaily, setSpareWtpDaily] = useState('1')
-  const [decisionPreference, setDecisionPreference] = useState<DecisionPreference>(() =>
-    loadDecisionPreference(),
-  )
 
-  const newPriceNum = parseFloat(newPrice) || 0
-  const manualResidual = newResidual.trim() !== ''
-  const newResidualNum = parseFloat(newResidual) || 0
-  const hassleDailyNum = parseNonNegativeDaily(hassleDaily)
-  const spareWtpDailyNum = parseNonNegativeDaily(spareWtpDaily)
-  const newSalvageRate = SALVAGE_PROFILE_RATES[newSalvageProfile]
-  const modelFirstYearResidual = newPriceNum > 0
-    ? calculateDynamicSalvageValue(newPriceNum, 365, newSalvageRate)
-    : 0
-  const newFirstYearResidual = manualResidual ? newResidualNum : modelFirstYearResidual
-  const newNetCost = Math.max(0, newPriceNum - newFirstYearResidual)
+  const newPriceNum = parseNonNegative(newPrice)
   const currentSalvageProfile = item.salvage_profile ?? inferSalvageProfile(item)
   const currentSalvageRate =
     item.annual_depreciation_rate ?? SALVAGE_PROFILE_RATES[currentSalvageProfile]
-  const currentModelResidual = calculateDynamicSalvageValue(
+  const currentModelValue = calculateDynamicSalvageValue(
     item.purchase_price,
     item.days_owned,
     currentSalvageRate,
   )
-  const currentSalvageValue = Math.max(
-    0,
-    item.residual_value ?? currentModelResidual,
-  )
-  const currentMarginalDaily = calculateMarginalDailyCost(
-    currentSalvageValue,
-    365,
+  const currentValue = Math.max(0, item.residual_value ?? currentModelValue)
+  const currentValueAfterHorizon = calculateDynamicSalvageValue(
+    currentValue,
+    HORIZON_DAYS,
     currentSalvageRate,
   )
-  const currentDecisionDaily = currentMarginalDaily + hassleDailyNum
-  const spareHorizonDays = getSpareHorizonDays(item)
-  const spareOpportunityDaily = currentSalvageValue / spareHorizonDays
-  const spareExcessDaily = Math.max(0, spareOpportunityDaily - spareWtpDailyNum)
-  const spareDecisionDaily =
-    dispositionMode === 'keep' ? spareExcessDaily : 0
+  const continueTotalCost = Math.max(0, currentValue - currentValueAfterHorizon)
 
-  const currentTrend = generateMarginalCostTrend(
-    currentSalvageValue,
-    365,
-    currentSalvageRate,
-    100,
-    90,
-  ).map(pt => ({
-    ...pt,
-    daily_cost: pt.daily_cost + hassleDailyNum,
-  }))
-
-  const manualNewFirstYearDaily = Math.max(0, newPriceNum - newResidualNum) / 365
-  const breakEvenDay = newPriceNum > 0
-    ? findMarginalBreakEvenDay(
-        currentSalvageValue,
-        currentSalvageRate,
-        newPriceNum,
-        newSalvageRate,
-        manualResidual ? manualNewFirstYearDaily : null,
-        hassleDailyNum,
-        spareDecisionDaily,
-      )
+  const newValueAfterHorizon = newPriceNum > 0
+    ? calculateDynamicSalvageValue(newPriceNum, HORIZON_DAYS, currentSalvageRate)
+    : 0
+  const newExperienceCost = Math.max(0, newPriceNum - newValueAfterHorizon)
+  const keptOldCost = dispositionMode === 'keep' ? continueTotalCost : 0
+  const replaceTotalCost = newPriceNum > 0
+    ? newExperienceCost + keptOldCost
     : null
-
-  const newDeviceTrend =
-    newPriceNum > 0
-      ? currentTrend.map(pt => ({
-          ...pt,
-          daily_cost: manualResidual
-            ? manualNewFirstYearDaily + spareDecisionDaily
-            : calculateMarginalDailyCost(newPriceNum, pt.day, newSalvageRate) + spareDecisionDaily,
-        }))
-      : undefined
-
-  const effectiveNewNetCost = newNetCost + spareDecisionDaily * 365
-  const newFirstYearDaily = newPriceNum > 0 ? effectiveNewNetCost / 365 : null
-  const verdict = newFirstYearDaily != null
-    ? buildUpgradeVerdict({
-        item,
-        newNetCost: effectiveNewNetCost,
-        breakEvenDay,
-        preference: decisionPreference,
-        baselineDaily: currentDecisionDaily,
-      })
-    : null
+  const experienceDelta = replaceTotalCost == null
+    ? null
+    : replaceTotalCost - continueTotalCost
 
   return (
-    <div className="space-y-5">
-      <div>
-        <h3 className="font-serif text-primary text-sm mb-1">{t('calc.title')}</h3>
-        <p className="text-2xs text-muted">{t('calc.hint')}</p>
-      </div>
-
-      <div className="rounded-xl border border-app-border bg-surface-2/45 p-3 space-y-3">
-        <div>
-          <p className="text-2xs font-medium uppercase tracking-widest text-muted">
-            {t('calc.dispositionTitle')}
-          </p>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <DispositionButton
-            active={dispositionMode === 'sell'}
-            icon={DollarSign}
-            label={t('calc.dispositionSell')}
-            description={t('calc.dispositionSellDesc')}
-            onClick={() => setDispositionMode('sell')}
-          />
-          <DispositionButton
-            active={dispositionMode === 'keep'}
-            icon={Archive}
-            label={t('calc.dispositionKeep')}
-            description={t('calc.dispositionKeepDesc')}
-            onClick={() => setDispositionMode('keep')}
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-lg border border-app-border bg-surface/60 px-3 py-2">
-            <p className="text-2xs text-muted">{t('calc.currentValue')}</p>
-            <p className="mt-0.5 font-mono text-sm font-semibold text-primary">
-              {formatCNY(currentSalvageValue, 0)}
-            </p>
-            <p className="mt-1 text-2xs leading-snug text-muted">
-              {item.residual_value == null ? t('calc.currentValueAuto') : t('calc.currentValueManual')}
-            </p>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="hassle-daily">{t('calc.hassleDaily')}</Label>
-            <Input
-              id="hassle-daily"
-              type="number"
-              min={0}
-              step={0.1}
-              prefix="¥"
-              suffix={t('calc.perDay')}
-              value={hassleDaily}
-              onChange={e => setHassleDaily(e.target.value)}
-            />
-          </div>
-        </div>
-        {dispositionMode === 'keep' && (
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="spare-wtp-daily">{t('calc.spareWtp')}</Label>
-              <Input
-                id="spare-wtp-daily"
-                type="number"
-                min={0}
-                step={0.1}
-                prefix="¥"
-                suffix={t('calc.perDay')}
-                value={spareWtpDaily}
-                onChange={e => setSpareWtpDaily(e.target.value)}
-              />
-            </div>
-            <div className="rounded-lg border border-app-border bg-surface/60 px-3 py-2">
-              <p className="text-2xs text-muted">{t('calc.spareCost')}</p>
-              <p className="mt-0.5 font-mono text-sm font-semibold text-primary">
-                {formatDailyCost(spareOpportunityDaily)} {t('calc.perDay')}
-              </p>
-              <p className="mt-1 text-2xs leading-snug text-muted">
-                {spareExcessDaily > 0
-                  ? t('calc.spareExcess', { amount: formatDailyCost(spareExcessDaily) })
-                  : t('calc.spareCovered')}
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="new-price">{t('calc.newPrice')}</Label>
+          <Label htmlFor="new-price">{copy(lang, '新设备价格', 'New device price')}</Label>
           <Input
             id="new-price"
             type="number"
+            min={0}
             placeholder="0"
             prefix="¥"
             value={newPrice}
-            onChange={e => setNewPrice(e.target.value)}
+            onChange={event => setNewPrice(event.target.value)}
           />
         </div>
+
         <div className="space-y-1.5">
-          <Label htmlFor="new-residual">{t('calc.newResidual')}</Label>
-          <Input
-            id="new-residual"
-            type="number"
-            placeholder={t('form.auto')}
-            prefix="¥"
-            value={newResidual}
-            onChange={e => setNewResidual(e.target.value)}
-          />
+          <Label htmlFor="old-device-disposition">
+            {copy(lang, '旧设备处理方式', 'Old device disposition')}
+          </Label>
+          <Select
+            value={dispositionMode}
+            onValueChange={value => setDispositionMode(value as DispositionMode)}
+          >
+            <SelectTrigger id="old-device-disposition">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="sell">
+                <span className="inline-flex items-center gap-2">
+                  <DollarSign className="h-3.5 w-3.5" />
+                  {copy(lang, '卖掉', 'Sell')}
+                </span>
+              </SelectItem>
+              <SelectItem value="keep">
+                <span className="inline-flex items-center gap-2">
+                  <Archive className="h-3.5 w-3.5" />
+                  {copy(lang, '留用', 'Keep as spare')}
+                </span>
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
-      {!manualResidual && (
-        <div className="rounded-lg border border-app-border bg-surface/50 p-3">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <p className="text-2xs font-medium uppercase tracking-widest text-muted">
-              {t('calc.salvageModel')}
-            </p>
-            {newPriceNum > 0 && (
-              <span className="font-mono text-2xs text-info">
-                {formatCNY(modelFirstYearResidual, 0)}
-              </span>
-            )}
-          </div>
-          <div className="grid grid-cols-3 gap-1">
-            {(['valueKeeper', 'steady', 'fastDrop'] as const).map(profile => (
-              <button
-                key={profile}
-                type="button"
-                onClick={() => setNewSalvageProfile(profile)}
-                className={[
-                  'rounded-md border px-2 py-1.5 text-left text-2xs transition-colors',
-                  newSalvageProfile === profile
-                    ? 'border-info-border bg-info-bg text-primary'
-                    : 'border-app-border bg-surface/60 text-muted hover:bg-surface-2',
-                ].join(' ')}
-              >
-                <span className="block truncate">{t(SALVAGE_PROFILE_LABEL_KEYS[profile])}</span>
-                <span className="mt-0.5 block font-mono text-muted">
-                  {(SALVAGE_PROFILE_RATES[profile] * 100).toFixed(0)}%
-                </span>
-              </button>
-            ))}
-          </div>
-          <p className="mt-2 text-2xs text-muted">{t('calc.salvageModelHint')}</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-lg border border-app-border bg-surface/50 px-4 py-3">
+          <p className="text-2xs uppercase tracking-widest text-muted">
+            {copy(lang, '旧设备估价', 'Old device value')}
+          </p>
+          <p className="mt-1 font-mono text-lg font-semibold leading-none text-primary">
+            {formatCNY(currentValue, 0)}
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-muted">
+            {copy(lang, '已自动带入，不需要手动填写。', 'Filled automatically; no manual input needed.')}
+          </p>
         </div>
-      )}
 
-      {newPriceNum > 0 && (
-        <>
-          {verdict && (
-            <DecisionVerdictPanel
-              verdict={verdict}
-              onPreferenceChange={setDecisionPreference}
-            />
-          )}
-
-          {/* Comparison result */}
-          <div className="rounded-xl bg-surface-2 border border-app-border p-4 space-y-3">
-            <div className="flex items-center justify-between text-sm">
-              <div>
-                <p className="text-muted text-xs mb-0.5">{t('calc.keepCurrent')}</p>
-                <p className="font-mono font-semibold text-primary">
-                  {formatDailyCost(currentDecisionDaily)}{' '}
-                  <span className="text-muted text-xs font-normal">{t('calc.perDay')}</span>
-                </p>
-              </div>
-              <ArrowRight className="h-4 w-4 text-muted" />
-              <div className="text-right">
-                <p className="text-muted text-xs mb-0.5">{t('calc.buyNew')}</p>
-                <p className="font-mono font-semibold text-primary">
-                  {formatDailyCost(newFirstYearDaily!)}{' '}
-                  <span className="text-muted text-xs font-normal">{t('calc.perDay')}</span>
-                </p>
-              </div>
-            </div>
-
-            {breakEvenDay !== null ? (
-              <div className="pt-3 border-t border-app-border flex items-start gap-2">
-                <TrendingDown className="h-4 w-4 text-accent mt-0.5 shrink-0" />
-                <p className="text-sm text-secondary">
-                  {t('calc.breakEvenPrefix')}{' '}
-                  <span className="font-mono font-bold text-accent">{breakEvenDay}</span>{' '}
-                  {t('calc.breakEvenDays')}{' '}
-                  {t('calc.breakEvenMonthsPrefix')}{(breakEvenDay / 30).toFixed(1)}{t('calc.breakEvenMonthsSuffix')}{' '}
-                  <span className="text-muted">{t('calc.breakEvenSuffix')}</span>
-                </p>
-              </div>
-            ) : (
-              <div className="pt-3 border-t border-app-border">
-                <p className="text-sm text-muted">{t('calc.noBreakEven')}</p>
-              </div>
+        <div className="rounded-lg border border-app-border bg-surface/50 px-4 py-3">
+          <p className="text-2xs uppercase tracking-widest text-muted">
+            {copy(lang, '继续使用两年', 'Keep for two years')}
+          </p>
+          <p className="mt-1 font-mono text-lg font-semibold leading-none text-primary">
+            {formatCNY(continueTotalCost, 0)}
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-muted">
+            {copy(
+              lang,
+              `约 ${formatDailyCost(continueTotalCost / HORIZON_DAYS)} 元/天，两年后旧设备大约还值 ${formatCNY(currentValueAfterHorizon, 0)}。`,
+              `About ${formatDailyCost(continueTotalCost / HORIZON_DAYS)}/day; the old device is estimated at ${formatCNY(currentValueAfterHorizon, 0)} after two years.`,
             )}
-          </div>
+          </p>
+        </div>
+      </div>
 
-          {/* Chart comparison */}
-          <div>
-            <p className="text-xs text-muted mb-3">{t('calc.chartTitle')}</p>
-            <CostTrendChart
-              data={currentTrend}
-              compareData={newDeviceTrend}
-              compareLabel={newPrice ? `${t('chart.newDeviceLabel')} ${formatCNY(newPriceNum, 0)}` : t('chart.newDeviceLabel')}
-            />
-          </div>
+      <div className={cn(
+        'rounded-lg border bg-surface/50 px-4 py-4',
+        experienceDelta == null
+          ? 'border-app-border'
+          : experienceDelta <= 0
+          ? 'border-success-border'
+          : 'border-danger-border',
+      )}>
+        <p className="text-2xs uppercase tracking-widest text-muted">
+          {copy(lang, '两年体验差价', 'Two-year experience premium')}
+        </p>
 
-          {/* Annual cost comparison */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-lg bg-accent-bg border border-accent-muted p-3">
-              <p className="text-2xs text-accent/70 mb-1">{t('calc.keepAnnual')}</p>
-              <p className="font-mono font-bold text-accent text-lg">
-                {formatCNY(currentDecisionDaily * 365, 0)}
-              </p>
-            </div>
-            <div className="rounded-lg bg-surface-2 border border-app-border p-3">
-              <p className="text-2xs text-muted mb-1">{t('calc.buyAnnual')}</p>
-              <p className="font-mono font-bold text-primary text-lg">
-                {formatCNY(effectiveNewNetCost, 0)}
-              </p>
-            </div>
-          </div>
-        </>
-      )}
+        {experienceDelta == null ? (
+          <>
+            <p className="mt-2 text-sm font-semibold text-primary">
+              {copy(lang, '输入新设备价格后计算', 'Enter a price to calculate')}
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-muted">
+              {copy(
+                lang,
+                '系统会比较未来两年继续使用和换新后的总折价，把差额理解成你为新设备体验多付的钱。',
+                'The calculator compares total value loss over the next two years and treats the difference as the premium paid for the new-device experience.',
+              )}
+            </p>
+          </>
+        ) : (
+          <>
+            <p className={cn(
+              'mt-2 font-mono text-3xl font-bold leading-none',
+              experienceDelta <= 0 ? 'text-success' : 'text-danger',
+            )}>
+              {experienceDelta <= 0 ? '-' : '+'}
+              {formatCNY(Math.abs(experienceDelta), 0)}
+              <span className="ml-1 text-sm font-normal text-muted">
+                {copy(lang, '两年', 'over two years')}
+              </span>
+            </p>
+            <p className="mt-2 text-xs leading-relaxed text-muted">
+              {resultExplanation({
+                lang,
+                dispositionMode,
+                currentValue,
+                newExperienceCost,
+                continueTotalCost,
+                replaceTotalCost: replaceTotalCost!,
+                experienceDelta,
+              })}
+            </p>
+          </>
+        )}
+      </div>
     </div>
   )
 }
 
-function findMarginalBreakEvenDay(
-  currentSalvageValue: number,
-  currentAnnualRate: number,
-  newPrice: number,
-  newAnnualRate: number,
-  fixedNewDailyCost: number | null,
-  hassleDaily: number,
-  spareDecisionDaily: number,
-  maxDays = 3650,
-) {
-  for (let day = 1; day <= maxDays; day += 1) {
-    const currentDaily = calculateMarginalDailyCost(
-      currentSalvageValue,
-      day,
-      currentAnnualRate,
-    ) + hassleDaily
-    const newDaily = fixedNewDailyCost ?? calculateMarginalDailyCost(
-      newPrice,
-      day,
-      newAnnualRate,
+function resultExplanation({
+  lang,
+  dispositionMode,
+  currentValue,
+  newExperienceCost,
+  continueTotalCost,
+  replaceTotalCost,
+  experienceDelta,
+}: {
+  lang: LangCode
+  dispositionMode: DispositionMode
+  currentValue: number
+  newExperienceCost: number
+  continueTotalCost: number
+  replaceTotalCost: number
+  experienceDelta: number
+}) {
+  const deltaText = formatCNY(Math.abs(experienceDelta), 0)
+  if (experienceDelta <= 0) {
+    return copy(
+      lang,
+      `如果你打算再用 ${HORIZON_YEARS} 年，换新预计折价 ${formatCNY(replaceTotalCost, 0)}，继续使用预计折价 ${formatCNY(continueTotalCost, 0)}。按这个估算，换新没有额外体验溢价，旧设备现在约 ${formatCNY(currentValue, 0)} 可处理。`,
+      `Over the next ${HORIZON_YEARS} years, upgrading is estimated to lose ${formatCNY(replaceTotalCost, 0)} in value, while keeping this one loses about ${formatCNY(continueTotalCost, 0)}. By this estimate, the upgrade has no extra experience premium, and the old device is worth about ${formatCNY(currentValue, 0)} today.`,
     )
-    if (newDaily + spareDecisionDaily <= currentDaily) return day
   }
-  return null
+
+  if (dispositionMode === 'sell') {
+    return copy(
+      lang,
+      `如果你打算再用 ${HORIZON_YEARS} 年，新设备预计折价 ${formatCNY(newExperienceCost, 0)}；继续用现在这台预计折价 ${formatCNY(continueTotalCost, 0)}。差价 ${deltaText} 买的是 ${HORIZON_YEARS} 年的新设备体验，旧设备现在约 ${formatCNY(currentValue, 0)} 可卖出回收现金。`,
+      `Over the next ${HORIZON_YEARS} years, the new device is expected to lose ${formatCNY(newExperienceCost, 0)} in value, while keeping this one loses about ${formatCNY(continueTotalCost, 0)}. The ${deltaText} difference buys ${HORIZON_YEARS} years of new-device experience, and the old device can be sold for about ${formatCNY(currentValue, 0)} in cash.`,
+    )
+  }
+
+  return copy(
+    lang,
+    `如果你打算再用 ${HORIZON_YEARS} 年，换新组合预计折价 ${formatCNY(replaceTotalCost, 0)}，继续只用旧设备预计折价 ${formatCNY(continueTotalCost, 0)}。差价 ${deltaText} 主要买的是 ${HORIZON_YEARS} 年的新设备体验，旧设备会留下来当备用。`,
+    `Over the next ${HORIZON_YEARS} years, the upgrade setup is expected to lose ${formatCNY(replaceTotalCost, 0)} in value, while only keeping the old device loses about ${formatCNY(continueTotalCost, 0)}. The ${deltaText} difference mostly buys ${HORIZON_YEARS} years of new-device experience while keeping the old one as a spare.`,
+  )
 }
 
-function parseNonNegativeDaily(value: string) {
+function copy(lang: LangCode, zh: string, en: string) {
+  return lang === 'zh' ? zh : en
+}
+
+function parseNonNegative(value: string) {
   const parsed = Number.parseFloat(value)
   return Number.isFinite(parsed) ? Math.max(0, parsed) : 0
-}
-
-function getSpareHorizonDays(item: ItemWithStats) {
-  if (!item.expected_years) return 730
-  const remainingDays = Math.ceil(item.expected_years * 365 - item.days_owned)
-  return Math.max(365, remainingDays)
-}
-
-function DispositionButton({
-  active,
-  icon: Icon,
-  label,
-  description,
-  onClick,
-}: {
-  active: boolean
-  icon: typeof DollarSign
-  label: string
-  description: string
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'min-h-20 rounded-lg border px-3 py-2 text-left transition-colors',
-        active
-          ? 'border-accent-muted bg-accent-bg text-primary'
-          : 'border-app-border bg-surface/60 text-muted hover:border-border-strong hover:bg-surface-2 hover:text-secondary',
-      )}
-    >
-      <span className="flex items-center gap-1.5 text-xs font-medium">
-        <Icon className={cn('h-3.5 w-3.5', active ? 'text-accent' : 'text-muted')} />
-        {label}
-      </span>
-      <span className="mt-1 block text-2xs leading-snug text-muted">
-        {description}
-      </span>
-    </button>
-  )
 }
