@@ -52,8 +52,8 @@ export function Login({ onAuthenticated }: LoginProps) {
   }
 
   return (
-    <main className="min-h-screen bg-surface text-primary">
-      <div className="mx-auto flex min-h-screen w-full max-w-sm flex-col justify-center px-5 py-10">
+    <main className="min-h-screen-safe bg-surface text-primary">
+      <div className="mx-auto flex min-h-screen-safe w-full max-w-sm flex-col justify-center px-5 py-10">
         <div className="mb-8 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <BrandMark className="h-10 w-10 shadow-sm ring-1 ring-accent-muted" />
