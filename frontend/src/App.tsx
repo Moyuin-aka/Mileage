@@ -5,6 +5,7 @@ import { Dashboard } from '@/pages/Dashboard'
 import { ItemDetail } from '@/pages/ItemDetail'
 import { ItemForm } from '@/pages/ItemForm'
 import { Archive } from '@/pages/Archive'
+import { Report } from '@/pages/Report'
 import { Login } from '@/pages/Login'
 import { hasAuthToken, onAuthChange } from '@/lib/auth'
 import { hasRequiredConnectionConfig } from '@/lib/connection'
@@ -37,6 +38,7 @@ export default function App() {
           <Route path="/edit/:id" element={<ItemForm />} />
           <Route path="/archive" element={<Archive />} />
         </Route>
+        <Route path="/report" element={<Report />} />
       </Routes>
     </BrowserRouter>
   )

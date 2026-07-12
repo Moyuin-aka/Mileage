@@ -4,6 +4,7 @@ import {
   ArrowRightLeft,
   ArrowUpCircle,
   CheckCircle,
+  FileText,
   Languages,
   LayoutDashboard,
   Loader2,
@@ -93,6 +94,16 @@ export function Sidebar() {
       >
         <ArrowRightLeft className="h-4 w-4" />
         {t('nav.fx')}
+      </Button>
+
+      <Button
+        variant="ghost"
+        size="md"
+        className="w-full mt-1 justify-start text-muted"
+        onClick={() => navigate('/report')}
+      >
+        <FileText className="h-4 w-4" />
+        {t('nav.report')}
       </Button>
 
       <Button

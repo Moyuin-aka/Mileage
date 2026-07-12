@@ -1,9 +1,10 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import {
   Archive,
   ArrowRightLeft,
   ArrowUpCircle,
+  FileText,
   Languages,
   LayoutDashboard,
   LogOut,
@@ -22,6 +23,7 @@ import { isTauriRuntime } from '@/lib/connection'
 import { useUpdateChecker } from '@/hooks/useUpdateChecker'
 
 export function BottomNav() {
+  const navigate = useNavigate()
   const { t, toggleLanguage } = useLanguage()
   const { theme, toggleTheme } = useTheme()
   const [fxOpen, setFxOpen] = useState(false)
@@ -96,6 +98,13 @@ export function BottomNav() {
               >
                 <ArrowRightLeft className="h-4 w-4 text-muted" />
                 {t('nav.fx')}
+              </DropdownMenu.Item>
+              <DropdownMenu.Item
+                onSelect={() => navigate('/report')}
+                className="flex cursor-pointer select-none items-center gap-2 rounded-lg px-3 py-2 text-sm text-secondary outline-none transition-colors data-[highlighted]:bg-surface-3 data-[highlighted]:text-primary"
+              >
+                <FileText className="h-4 w-4 text-muted" />
+                {t('nav.report')}
               </DropdownMenu.Item>
               <DropdownMenu.Separator className="my-1 h-px bg-app-border" />
               <DropdownMenu.Item

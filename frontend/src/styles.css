@@ -78,6 +78,26 @@
     scroll-behavior: smooth;
   }
 
+  /* Printed pages always render in light mode, regardless of the active app theme */
+  @media print {
+    :root.dark {
+      --color-surface: 255 255 255;
+      --color-surface-2: 255 255 255;
+      --color-surface-3: 244 244 245;
+      --color-primary: 24 24 27;
+      --color-secondary: 63 63 70;
+      --color-muted: 113 113 122;
+      --color-surface-hover: 228 228 231;
+      --color-border: 228 228 231;
+      --color-border-strong: 212 212 216;
+      --color-accent: 22 163 74;
+      --color-accent-dim: 21 128 61;
+      --color-accent-bg: 220 252 231;
+      --color-accent-muted: 74 222 128;
+      color-scheme: light;
+    }
+  }
+
   /* Safe area insets for iOS / Android edge-to-edge (status bar, notch, home indicator) */
   body {
     padding-top: env(safe-area-inset-top, 0px);
